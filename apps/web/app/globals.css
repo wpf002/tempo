@@ -1231,3 +1231,56 @@ button.move:focus-visible {
     padding: 16px 16px 48px;
   }
 }
+
+/* ---------- Overlay HUD (/overlay) ----------
+   Sits on a dark blurred panel over the game, so it pins the dark values and thins the surfaces. */
+
+:root:has(.hud) {
+  color-scheme: dark;
+  --bg: transparent;
+  --surface: rgb(255 255 255 / 0.08);
+  --surface-2: rgb(255 255 255 / 0.1);
+  --border: rgb(255 255 255 / 0.16);
+  --border-strong: rgb(255 255 255 / 0.45);
+  --text: #f0ece4;
+  --text-muted: #bdb6aa;
+  --accent: #6ea4f4;
+  --accent-hover: #8ab6f7;
+  --accent-fg: #0b1526;
+  --best: #19a87d;
+  --inaccuracy: #ae8a26;
+  --mistake: #b44200;
+  --blunder: #f4455d;
+  --danger: #f4455d;
+}
+
+.hud {
+  display: grid;
+  gap: 12px;
+  width: 320px;
+  padding: 24px 16px 16px;
+}
+
+/* Opened in a normal browser tab there is no blurred panel behind it. */
+.hud.standalone {
+  margin: 24px;
+  background: #1b1a18;
+  border-radius: 12px;
+}
+
+.hud-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 24px;
+}
+
+.hud .evalnum {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.hud .explain {
+  max-height: 264px;
+  overflow: auto;
+}

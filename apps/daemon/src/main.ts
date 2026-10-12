@@ -1,3 +1,5 @@
+import { spawn, type ChildProcess } from "node:child_process";
+import { existsSync } from "node:fs";
 import { Coach, Engine, Store } from "@tempo/core";
 import { loadConfig } from "./config.js";
 import { Hub } from "./hub.js";
@@ -53,10 +55,23 @@ for (const s of sources) {
 
 const app = await buildServer({ port: cfg.port, webOrigin: cfg.webOrigin, hub, store, drillEngine: reviewEngine, chessapp });
 
+// The on-screen overlay is a separate native process. It exits when our end of its stdin closes.
+let overlay: ChildProcess | null = null;
+if (cfg.overlay && process.platform === "darwin") {
+  if (existsSync(cfg.overlayPath)) {
+    // Fixed binary and fixed args. No shell.
+    overlay = spawn(cfg.overlayPath, ["--url", `${cfg.webOrigin}/overlay`], { stdio: ["pipe", "ignore", "inherit"], shell: false });
+    overlay.on("error", (e) => log("overlay failed to start", e));
+  } else {
+    log("tempo-overlay isn't built, so there's no on-screen overlay. Run: pnpm watch:build");
+  }
+}
+
 const shutdown = async () => {
   // Never hang on exit: a stray open socket shouldn't keep Stockfish processes alive.
   setTimeout(() => process.exit(0), 3000).unref();
   for (const s of sources) s.stop();
+  overlay?.kill();
   await app.close();
   await Promise.all([liveEngine.stop(), reviewEngine.stop()]);
   store.close();

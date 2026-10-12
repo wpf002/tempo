@@ -161,19 +161,22 @@ export class Hub extends EventEmitter {
       void this.deps.liveEngine.newGame().catch((e) => this.deps.log("engine newGame failed", e));
     }
     this.game = u;
-    this.deps.store.upsertGame({
-      id: u.gameId,
-      source: u.source,
-      externalId: u.externalId,
-      playerColor: u.playerColor,
-      opponent: u.opponent,
-      vsComputer: u.vsComputer,
-      startFen: u.startFen,
-      moves: u.moves,
-      result: u.result,
-      startedAt: this.deps.store.getGame(u.gameId)?.startedAt ?? Date.now(),
-      endedAt: u.finished ? Date.now() : null,
-    });
+    // A board sitting on the starting position isn't a game worth keeping yet.
+    if (u.moves.length) {
+      this.deps.store.upsertGame({
+        id: u.gameId,
+        source: u.source,
+        externalId: u.externalId,
+        playerColor: u.playerColor,
+        opponent: u.opponent,
+        vsComputer: u.vsComputer,
+        startFen: u.startFen,
+        moves: u.moves,
+        result: u.result,
+        startedAt: this.deps.store.getGame(u.gameId)?.startedAt ?? Date.now(),
+        endedAt: u.finished ? Date.now() : null,
+      });
+    }
 
     if (u.finished && u.moves.length >= MIN_REVIEW_PLIES) this.enqueueReview(u.gameId);
     if (this.liveCheck().allowed) {

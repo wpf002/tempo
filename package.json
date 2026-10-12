@@ -11,7 +11,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "watch:build": "swift build -c release --package-path native/tempo-watch",
-    "watch:dump": "swift run -c release --package-path native/tempo-watch tempo-watch --dump"
+    "watch:dump": "swift run -c release --package-path native/tempo-watch tempo-watch --dump",
+    "overlay": "native/tempo-watch/.build/release/tempo-overlay"
   },
   "devDependencies": {
     "turbo": "^2.11.7",

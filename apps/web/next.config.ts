@@ -17,6 +17,8 @@ const csp = [
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // The dev badge would sit on top of the overlay HUD.
+  devIndicators: false,
   async headers() {
     return [
       {

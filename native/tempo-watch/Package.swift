@@ -5,6 +5,8 @@ let package = Package(
     name: "tempo-watch",
     platforms: [.macOS(.v13)],
     targets: [
-        .executableTarget(name: "tempo-watch", path: "Sources/tempo-watch")
+        .target(name: "TempoAX", path: "Sources/TempoAX"),
+        .executableTarget(name: "tempo-watch", dependencies: ["TempoAX"], path: "Sources/tempo-watch"),
+        .executableTarget(name: "tempo-overlay", dependencies: ["TempoAX"], path: "Sources/tempo-overlay"),
     ]
 )

@@ -10,8 +10,8 @@
 import AppKit
 import ApplicationServices
 import Foundation
+import TempoAX
 
-let chessBundleID = "com.apple.Chess"
 let maxDepth = 40
 let maxNodesPerWindow = 8000
 let maxTextLength = 20_000
@@ -19,6 +19,8 @@ let maxTextLength = 20_000
 struct WindowSnapshot: Encodable {
     let title: String
     let texts: [String]
+    /// FEN piece placement read from the board itself, when the window is a game window.
+    let placement: String?
 }
 
 struct OkSnapshot: Encodable {
@@ -29,35 +31,6 @@ struct OkSnapshot: Encodable {
 struct ErrSnapshot: Encodable {
     let ok: Bool
     let error: String
-}
-
-// MARK: - AX helpers
-
-func copyAttr(_ el: AXUIElement, _ name: String) -> CFTypeRef? {
-    var value: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(el, name as CFString, &value) == .success else { return nil }
-    return value
-}
-
-func stringAttr(_ el: AXUIElement, _ name: String) -> String? {
-    guard let v = copyAttr(el, name) else { return nil }
-    if let s = v as? String { return s }
-    if let a = v as? NSAttributedString { return a.string }
-    return nil
-}
-
-func childrenOf(_ el: AXUIElement) -> [AXUIElement] {
-    guard let v = copyAttr(el, kAXChildrenAttribute as String) else { return [] }
-    return (v as? [AXUIElement]) ?? []
-}
-
-func chessApp() -> NSRunningApplication? {
-    NSRunningApplication.runningApplications(withBundleIdentifier: chessBundleID).first
-}
-
-func isTrusted(prompt: Bool) -> Bool {
-    let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-    return AXIsProcessTrustedWithOptions([key: prompt] as CFDictionary)
 }
 
 // MARK: - Collect text
@@ -82,14 +55,16 @@ func snapshot(app: NSRunningApplication) -> OkSnapshot {
     let appEl = AXUIElementCreateApplication(app.processIdentifier)
     AXUIElementSetMessagingTimeout(appEl, 1.0)
     var windows: [WindowSnapshot] = []
-    let wins = (copyAttr(appEl, kAXWindowsAttribute as String) as? [AXUIElement]) ?? []
-    for w in wins.prefix(50) {
+    for w in windowsOf(appEl).prefix(50) {
         var texts: [String] = []
         var budget = maxNodesPerWindow
         for child in childrenOf(w) {
             collectTexts(child, depth: 1, budget: &budget, into: &texts)
         }
-        windows.append(WindowSnapshot(title: stringAttr(w, kAXTitleAttribute as String) ?? "", texts: Array(texts.prefix(5000))))
+        windows.append(WindowSnapshot(
+            title: stringAttr(w, kAXTitleAttribute as String) ?? "",
+            texts: Array(texts.prefix(5000)),
+            placement: readBoard(w).map(placement)))
     }
     return OkSnapshot(ok: true, windows: windows)
 }

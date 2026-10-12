@@ -60,7 +60,7 @@ pnpm install
 # 5. Chess.app reader
 if [[ "$(uname -s)" == "Darwin" ]]; then
   command -v swift >/dev/null || die "Swift toolchain missing. Run: xcode-select --install"
-  say "Building tempo-watch (Chess.app reader)"
+  say "Building tempo-watch and tempo-overlay (Chess.app reader and on-screen overlay)"
   swift build -c release --package-path native/tempo-watch
   warn "First run: macOS will ask to grant Accessibility to your terminal. System Settings > Privacy & Security > Accessibility."
 fi
