@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Chess } from "chess.js";
-import { Chessboard } from "react-chessboard";
 import { api, type DrillRow } from "./api";
+import { Board } from "./Board";
+import { GradeTag } from "./ui";
 
 interface Result {
   correct: boolean;
@@ -11,6 +12,7 @@ interface Result {
   explanation: string;
   takeaway: string;
   played: string;
+  uci: string;
 }
 
 export function Drills({ refreshKey }: { refreshKey: number }) {
@@ -20,15 +22,17 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     api<DrillRow[]>("/api/drills")
       .then((d) => {
+        setErr(false);
         setDrills(d);
         setI(0);
       })
       .catch(() => setErr(true));
-  }, [refreshKey]);
+  }, [refreshKey, attempt]);
 
   const drill = drills?.[i];
   useEffect(() => {
@@ -36,11 +40,39 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
     setResult(null);
   }, [drill]);
 
-  const orientation = useMemo(() => (drill ? (new Chess(drill.fen).turn() === "w" ? "white" : "black") : "white"), [drill]);
+  const side = useMemo(() => (drill && new Chess(drill.fen).turn() === "b" ? "black" : "white"), [drill]);
 
-  if (err) return <div className="card muted">Couldn't reach the daemon.</div>;
-  if (!drills) return <div className="card muted">Loading…</div>;
-  if (!drill) return <div className="card muted">No drills due. Mistakes from reviewed games come back here on a spaced schedule.</div>;
+  if (err) {
+    return (
+      <div className="card empty">
+        <h2 className="title">Couldn't reach the daemon.</h2>
+        <p className="muted prose">
+          Check that <code>pnpm dev</code> is still running.
+        </p>
+        <button className="btn" onClick={() => setAttempt((a) => a + 1)}>
+          Try again
+        </button>
+      </div>
+    );
+  }
+  if (!drills) {
+    return (
+      <div className="drill" aria-busy="true" aria-label="Loading drills">
+        <div className="stage">
+          <div className="skeleton" style={{ aspectRatio: "1" }} />
+        </div>
+        <div className="skeleton" style={{ height: 160 }} />
+      </div>
+    );
+  }
+  if (!drill) {
+    return (
+      <div className="card empty">
+        <h2 className="title">No drills due</h2>
+        <p className="muted prose">Positions where you went wrong come back here as puzzles. Solve one and it returns after 2 days, then 4, then 8. Miss it and it's back in 10 minutes.</p>
+      </div>
+    );
+  }
 
   const onDrop = ({ sourceSquare, targetSquare }: { sourceSquare: string; targetSquare: string | null }) => {
     if (!targetSquare || result || busy || !fen) return false;
@@ -54,8 +86,8 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
     setFen(c.fen());
     setBusy(true);
     const uci = mv.from + mv.to + (mv.promotion ?? "");
-    api<Omit<Result, "played">>(`/api/drills/${drill.id}/attempt`, { method: "POST", body: JSON.stringify({ uci }) })
-      .then((r) => setResult({ ...r, played: mv.san }))
+    api<Omit<Result, "played" | "uci">>(`/api/drills/${drill.id}/attempt`, { method: "POST", body: JSON.stringify({ uci }) })
+      .then((r) => setResult({ ...r, played: mv.san, uci }))
       .catch(() => setErr(true))
       .finally(() => setBusy(false));
     return true;
@@ -63,46 +95,78 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
 
   const next = () => {
     if (i + 1 < drills.length) setI(i + 1);
-    else api<DrillRow[]>("/api/drills").then((d) => { setDrills(d); setI(0); }).catch(() => setErr(true));
+    else setAttempt((a) => a + 1);
   };
 
   return (
-    <div className="reviewgrid">
-      <div className="board">
-        <Chessboard options={{
-          id: "drill",
-          position: fen ?? drill.fen,
-          boardOrientation: orientation,
-          allowDragging: !result && !busy,
-          onPieceDrop: onDrop,
-          darkSquareStyle: { backgroundColor: "var(--sq-dark)" },
-          lightSquareStyle: { backgroundColor: "var(--sq-light)" },
-          arrows: result && !result.correct ? [{ startSquare: drill.bestUci.slice(0, 2), endSquare: drill.bestUci.slice(2, 4), color: "rgba(111,191,115,0.85)" }] : [],
-        }} />
+    <div className="drill">
+      <div className="stage">
+        <Board
+          id="drill"
+          fen={fen ?? drill.fen}
+          orientation={side}
+          lastMove={result?.uci}
+          arrows={result && !result.correct ? [{ uci: drill.bestUci, tone: "best" }] : []}
+          onDrop={result || busy ? undefined : onDrop}
+        />
       </div>
-      <div>
+
+      <div className="stack">
         <div className="card">
-          <h3>Drill {i + 1} of {drills.length} · from your {drill.phase}</h3>
-          <p style={{ marginTop: 0 }}>
-            You played <b className="mono">{drill.playedSan}</b> here ({drill.grade}). {orientation === "white" ? "White" : "Black"} to move. Find the better move.
+          <div className="card-head">
+            <h3 className="card-title">
+              Drill {i + 1} of {drills.length}
+            </h3>
+            <span className="steps" style={{ width: Math.min(drills.length, 10) * 28 }} aria-hidden="true">
+              {drills.slice(0, 10).map((d, k) => (
+                <span key={d.id} className={k === i ? "on" : k < i ? "done" : ""} />
+              ))}
+            </span>
+          </div>
+          <h2 className="title">{side === "white" ? "White" : "Black"} to move. Find the better move.</h2>
+          <p className="prose">
+            <span className="muted">From your {drill.phase}. You played</span> <b>{drill.playedSan}</b> <GradeTag grade={drill.grade} />
           </p>
-          {busy && <p className="muted">Checking…</p>}
-          {result && (
-            <>
-              <p>
-                <span className={`grade ${result.correct ? "g-best" : "g-blunder"}`}>{result.correct ? "correct" : "not quite"}</span>{" "}
-                <span className="mono">{result.played}</span>
-                {!result.correct && <> · best was <b className="mono">{result.bestSan}</b></>}
-              </p>
-              {result.explanation && <p>{result.explanation}</p>}
-              {result.takeaway && <p className="muted">{result.takeaway}</p>}
-              <div className="row">
-                <button className="btn" onClick={() => { setFen(drill.fen); setResult(null); }}>Try again</button>
-                <button className="btn primary" onClick={next}>Next</button>
-              </div>
-            </>
-          )}
+          {!result && <p className="muted small">{busy ? "Checking your move." : "Drag a piece to answer."}</p>}
         </div>
+
+        {result && (
+          <div className="card explain" role="status">
+            <div className="lastmove">
+              <span className="san">{result.played}</span>
+              <span className="tag">
+                <span className={`mark ${result.correct ? "best" : "blunder"}`} />
+                {result.correct ? "Correct" : "Not the move"}
+              </span>
+              {!result.correct && (
+                <span className="small">
+                  <span className="muted">Best was</span> <b>{result.bestSan}</b>
+                </span>
+              )}
+            </div>
+            {result.explanation && <p className="prose">{result.explanation}</p>}
+            {result.takeaway && (
+              <div className="rule">
+                <span className="label">Rule</span>
+                <p className="prose">{result.takeaway}</p>
+              </div>
+            )}
+            <div className="row tight">
+              <button className="btn primary" onClick={next}>
+                Next drill
+              </button>
+              <button
+                className="btn"
+                onClick={() => {
+                  setFen(drill.fen);
+                  setResult(null);
+                }}
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

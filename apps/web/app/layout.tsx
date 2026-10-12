@@ -1,22 +1,22 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Geist } from "next/font/google";
 import "./globals.css";
+
+// Self-hosted at build time, so the panel makes no third-party requests.
+const sans = Geist({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-sans", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Tempo",
   description: "Chess coach for Chess.app and Lichess",
 };
 
+export const viewport: Viewport = {
+  colorScheme: "light dark",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={sans.variable}>
       <body>{children}</body>
     </html>
   );

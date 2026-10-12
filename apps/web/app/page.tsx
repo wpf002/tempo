@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { useHub, type Explanation, type HubMessage, type LiveState } from "./_components/api";
 import { Live } from "./_components/Live";
 import { Review } from "./_components/Review";
 import { Stats } from "./_components/Stats";
 import { Drills } from "./_components/Drills";
+import { Logo, StatusDot, sourceName } from "./_components/ui";
 
 const TABS = ["Live", "Review", "Stats", "Drills"] as const;
 type Tab = (typeof TABS)[number];
@@ -48,37 +49,82 @@ export default function Page() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  const pick = (t: Tab) => {
+    setTab(t);
+    if (t !== "Live") setRefreshKey((k) => k + 1);
+  };
+
+  const onTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const t = TABS[(TABS.indexOf(tab) + step + TABS.length) % TABS.length]!;
+    pick(t);
+    document.getElementById(`tab-${t}`)?.focus();
+  };
+
   return (
-    <main className="shell">
-      <div className="top">
-        <div className="brand">Tem<span>po</span></div>
-        <div className="tabs" role="tablist">
-          {TABS.map((t) => (
-            <button key={t} role="tab" aria-selected={tab === t} onClick={() => { setTab(t); if (t !== "Live") setRefreshKey((k) => k + 1); }}>
-              {t}
-            </button>
-          ))}
+    <>
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand">
+            <Logo />
+            Tempo
+          </div>
+          <div className="tabs" role="tablist" aria-label="Sections" onKeyDown={onTabKey}>
+            {TABS.map((t) => (
+              <button key={t} id={`tab-${t}`} className="tab" role="tab" aria-selected={tab === t} aria-controls="panel" tabIndex={tab === t ? 0 : -1} onClick={() => pick(t)}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <div className="status">
+            {connected &&
+              state?.sources.map((s) => (
+                <span key={s.source} className="status-item" title={`${sourceName(s.source)}: ${s.detail || s.state}`}>
+                  <StatusDot state={s.state} />
+                  <span className="text">{sourceName(s.source)}</span>
+                  <span className="sr-only">{s.state}</span>
+                </span>
+              ))}
+            <span className="status-item">
+              <span className={`dot ${connected ? "ok" : "bad"}`} />
+              <span className="text">{connected ? "Connected" : "Daemon offline"}</span>
+            </span>
+          </div>
         </div>
-        <span className={`conn ${connected ? "ok" : "bad"}`}>{connected ? "daemon" : "daemon offline"}</span>
-      </div>
+      </header>
 
-      {tab === "Live" && (
-        <Live
-          state={state}
-          send={send}
-          explanation={explanation}
-          explaining={explaining}
-          onExplain={() => {
-            setExplaining(true);
-            send({ type: "explain" });
-          }}
-        />
+      <main className="content" id="panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
+        {!connected && state && (
+          <div className="banner" role="status">
+            <span className="dot bad" />
+            Lost the connection to the daemon. Reconnecting.
+          </div>
+        )}
+        {tab === "Live" && (
+          <Live
+            state={state}
+            connected={connected}
+            send={send}
+            explanation={explanation}
+            explaining={explaining}
+            onExplain={() => {
+              setExplaining(true);
+              send({ type: "explain" });
+            }}
+          />
+        )}
+        {tab === "Review" && <Review refreshKey={refreshKey} reviewing={state?.review ?? null} />}
+        {tab === "Stats" && <Stats refreshKey={refreshKey} />}
+        {tab === "Drills" && <Drills refreshKey={refreshKey} />}
+      </main>
+
+      {toast && (
+        <div className="toast" role="status">
+          {toast}
+        </div>
       )}
-      {tab === "Review" && <Review refreshKey={refreshKey} />}
-      {tab === "Stats" && <Stats refreshKey={refreshKey} />}
-      {tab === "Drills" && <Drills refreshKey={refreshKey} />}
-
-      {toast && <div className="toast" role="status">{toast}</div>}
-    </main>
+    </>
   );
 }

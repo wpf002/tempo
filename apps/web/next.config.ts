@@ -7,8 +7,8 @@ const dev = process.env.NODE_ENV !== "production";
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
   "img-src 'self' data:",
   `connect-src 'self' ${daemon} ${ws}${dev ? " ws://localhost:3100 ws://127.0.0.1:3100" : ""}`,
   "frame-ancestors 'none'",

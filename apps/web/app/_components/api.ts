@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export const DAEMON = process.env.NEXT_PUBLIC_TEMPO_DAEMON ?? "http://localhost:4848";
+export const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 export type Grade = "best" | "good" | "inaccuracy" | "mistake" | "blunder";
 export interface Score { cp: number | null; mate: number | null }
@@ -28,7 +29,7 @@ export interface LiveState {
   eval: { score: Score; text: string } | null;
   thinking: boolean;
   lastGrade: { san: string; grade: Grade; before: string; after: string; bestSan: string | null } | null;
-  hints: { tier: number; text: string }[];
+  hints: { tier: number; text: string; square?: string; uci?: string }[];
   review: { gameId: string; done: number; total: number } | null;
 }
 

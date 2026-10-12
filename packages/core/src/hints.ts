@@ -6,6 +6,10 @@ import { formatScore, povChances } from "./grade.js";
 export interface Hint {
   tier: 1 | 2 | 3;
   text: string;
+  /** Tier 2: the square of the piece to move, so the panel can highlight it. */
+  square?: string;
+  /** Tier 3: the move in UCI, so the panel can draw it. */
+  uci?: string;
 }
 
 const PIECE_NAMES: Record<string, string> = {
@@ -95,7 +99,7 @@ export function buildHints(analysis: Analysis): Hint[] {
 
   return [
     { tier: 1, text: tier1 },
-    { tier: 2, text: tier2 },
-    { tier: 3, text: tier3 },
+    { tier: 2, text: tier2, square: mv.from },
+    { tier: 3, text: tier3, uci: mv.from + mv.to + (mv.promotion ?? "") },
   ];
 }
