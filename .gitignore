@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+.env
+.env.local
+*.db
+*.db-wal
+*.db-shm
+native/tempo-watch/.build/
+.DS_Store

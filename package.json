@@ -1,0 +1,26 @@
+{
+  "name": "tempo",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "watch:build": "swift build -c release --package-path native/tempo-watch",
+    "watch:dump": "swift run -c release --package-path native/tempo-watch tempo-watch --dump"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.7",
+    "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
+  }
+}
