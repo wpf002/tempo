@@ -61,7 +61,7 @@ The reader uses the Accessibility API. The first run prompts for permission. Gra
 
 Tempo reads the position from the board itself (Chess.app exposes every square) and works out each move from how the position changed. Start a new game and it follows from move one.
 
-If you start Tempo in the middle of a game, open Chess.app's Game Log window (Moves menu) so it can read the moves played so far.
+If you start Tempo in the middle of a game, it picks the game up from the current position. Moves played before that aren't in the review unless Chess.app's Game Log window (Moves menu) is open, which gives Tempo the full move list.
 
 `pnpm watch:dump` prints Chess.app's accessibility tree if the reader ever needs debugging.
 
@@ -85,7 +85,7 @@ Drag the panel by its top edge to move it. Set `TEMPO_OVERLAY=0` in `.env` to tu
 | Web panel | Built and checked in a browser against the daemon: Live, Review, Stats, Drills, light and dark, narrow width |
 | Lichess source | Written against the official API spec; needs a first run with a real token |
 | `tempo-watch` (Swift) | Built and run against Chess.app. Reads the board position and players |
-| Chess.app move tracking | Board-following is unit tested and was run against a live Chess.app game at the starting position. Not yet run through a full game |
+| Chess.app move tracking | Board-following is unit tested and was run against live Chess.app games, from the starting position and joined mid-game. Not yet run through a full game |
 | `tempo-overlay`, Chess.app | Run against Chess.app at one window size: panel placement and hint arrow confirmed on screen. Chess.app reports square positions upside down, so the overlay flips them |
 | `tempo-overlay`, Lichess | Written. Not yet run against a Lichess window |
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BoardFollower, ChessAppTracker, extractMoves, parseTitle } from "../src/sources/chessapp.js";
+import { BoardFollower, ChessAppTracker, extractMoves, fenFromBoard, parseTitle } from "../src/sources/chessapp.js";
 import type { GameUpdate } from "../src/sources/types.js";
 
 describe("extractMoves", () => {
@@ -49,7 +49,8 @@ describe("ChessAppTracker", () => {
 
 describe("parseTitle", () => {
   it("reads both players from a game window title", () => {
-    expect(parseTitle("Game 1 | Will Foti - Computer   (White to Move)")).toEqual({ white: "Will Foti", black: "Computer" });
+    expect(parseTitle("Game 1 | Will Foti - Computer   (White to Move)")).toEqual({ white: "Will Foti", black: "Computer", turn: "w" });
+    expect(parseTitle("Game 2 | Computer - Will Foti (Black to Move) — Edited")?.turn).toBe("b");
     expect(parseTitle("Game Log")).toBeNull();
   });
 });
@@ -59,23 +60,43 @@ describe("BoardFollower", () => {
   const E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR";
   const E4_E5_NF3 = "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R";
 
+  const G4_D5 = "rnbqkbnr/ppp1pppp/8/3p4/6P1/8/PPPPPP1P/RNBQKBNR";
+
   it("recovers moves from positions, including a reply missed between polls", () => {
     const f = new BoardFollower();
-    expect(f.ingest(START)).toEqual([]);
-    expect(f.ingest(E4)).toEqual(["e2e4"]);
-    expect(f.ingest(E4)).toEqual(["e2e4"]);
-    expect(f.ingest(E4_E5_NF3)).toEqual(["e2e4", "e7e5", "g1f3"]);
+    expect(f.ingest(START)?.moves).toEqual([]);
+    expect(f.ingest(E4)?.moves).toEqual(["e2e4"]);
+    expect(f.ingest(E4)?.moves).toEqual(["e2e4"]);
+    expect(f.ingest(E4_E5_NF3)?.moves).toEqual(["e2e4", "e7e5", "g1f3"]);
   });
 
-  it("handles takebacks and gives up on a position it can't explain", () => {
+  it("handles takebacks and gives up only when it can't tell whose move it is", () => {
     const f = new BoardFollower();
-    expect(f.ingest(E4)).toBeNull(); // joined mid-game
+    expect(f.ingest(E4)).toBeNull(); // mid-game, side to move unknown
     f.ingest(START);
     f.ingest(E4);
     f.ingest(E4_E5_NF3);
-    expect(f.ingest(E4)).toEqual(["e2e4"]);
+    expect(f.ingest(E4)?.moves).toEqual(["e2e4"]);
     expect(f.ingest("8/8/8/4k3/8/8/8/4K3")).toBeNull();
-    expect(f.ingest(START)).toEqual([]);
+    expect(f.ingest(START)).toEqual({ startFen: expect.stringContaining(" w KQkq "), moves: [] });
+  });
+
+  it("joins a game in progress and follows it from there", () => {
+    const f = new BoardFollower();
+    const joined = f.ingest(G4_D5, "w")!;
+    expect(joined).toEqual({ startFen: `${G4_D5} w KQkq - 0 1`, moves: [] });
+    // 2.Bg2 Bxg4
+    const next = f.ingest("rn1qkbnr/ppp1pppp/8/3p4/6b1/8/PPPPPPBP/RNBQK1NR", "w")!;
+    expect(next.startFen).toBe(joined.startFen);
+    expect(next.moves).toEqual(["f1g2", "c8g4"]);
+  });
+});
+
+describe("fenFromBoard", () => {
+  it("drops castling rights for a king or rook that has left home", () => {
+    expect(fenFromBoard("r3k2r/8/8/8/8/8/8/R3K2R", "b")).toBe("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1");
+    expect(fenFromBoard("r3k3/8/8/8/8/8/8/4K2R", "w")).toBe("r3k3/8/8/8/8/8/8/4K2R w Kq - 0 1");
+    expect(fenFromBoard("8/8/8/8/8/8/8/8", "w")).toBeNull();
   });
 });
 
@@ -90,5 +111,20 @@ describe("ChessAppTracker at the starting position", () => {
     expect(out[0]).toMatchObject({ moves: [], finished: false });
     tr.ingest(["e2e4"]);
     expect(out.at(-1)!.gameId).toBe(out[0]!.gameId);
+  });
+});
+
+describe("ChessAppTracker joining mid-game", () => {
+  it("opens a game from the joined position and reports that position as its start", () => {
+    const out: GameUpdate[] = [];
+    let t = 1_700_000_000_000;
+    const tr = new ChessAppTracker((u) => out.push(u), () => t++);
+    const fen = "rnbqkbnr/ppp1pppp/8/3p4/6P1/8/PPPPPP1P/RNBQKBNR w KQkq - 0 1";
+    tr.ingest([], true, fen);
+    tr.ingest([], true, fen);
+    tr.ingest(["f1g2"], false, fen);
+    expect(out).toHaveLength(2);
+    expect(out.every((u) => u.startFen === fen)).toBe(true);
+    expect(new Set(out.map((u) => u.gameId)).size).toBe(1);
   });
 });
