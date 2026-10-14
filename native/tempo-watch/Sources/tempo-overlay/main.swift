@@ -117,6 +117,9 @@ final class Overlay: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private var wantSquare: String?
     private var wantArrow: String?
     private var gameSource: String?
+    private var gameActive = false
+    // Whether the focused Chess window has a board, re-checked about once a second (it's a tree walk).
+    private var boardWindow: (window: AXUIElement, hasBoard: Bool, age: Int)?
     fileprivate var squares: [String: AXUIElement] = [:]
     private var boardView: AXUIElement?
     private var squaresAge = 0
@@ -164,6 +167,7 @@ final class Overlay: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         if let h = body["height"] as? Double { hudHeight = CGFloat(min(max(h, 48), 720)) }
         if body.keys.contains("source") {
             gameSource = body["source"] as? String
+            gameActive = body["active"] as? Bool ?? false
             wantSquare = body["square"] as? String
             wantArrow = body["arrow"] as? String
         }
@@ -214,6 +218,16 @@ final class Overlay: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         return windowsOf(appEl).first
     }
 
+    private func hasBoard(_ win: AXUIElement) -> Bool {
+        if let b = boardWindow, CFEqual(b.window, win), b.age < 8 {
+            boardWindow = (win, b.hasBoard, b.age + 1)
+            return b.hasBoard
+        }
+        let has = readBoard(win) != nil
+        boardWindow = (win, has, 0)
+        return has
+    }
+
     private func hide() {
         target = nil
         hud.orderOut(nil)
@@ -223,10 +237,15 @@ final class Overlay: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private func tick() {
         guard isTrusted(prompt: false), let app = NSWorkspace.shared.frontmostApplication, let bundle = app.bundleIdentifier else { return hide() }
         let isChess = bundle == chessBundleID
-        guard isChess || browserBundleIDs.contains(bundle), let win = focusedWindow(app), let frame = frameOf(win) else { return hide() }
-        if !isChess {
+        guard isChess || browserBundleIDs.contains(bundle), let win = focusedWindow(app), let frame = frameOf(win),
+              copyAttr(win, kAXMinimizedAttribute as String) as? Bool != true else { return hide() }
+        if isChess {
+            // Only over a window that shows a board, not Chess.app's other windows.
+            guard hasBoard(win) else { return hide() }
+        } else {
+            // A browser tab only counts while Lichess has a game going for this player.
             let title = (stringAttr(win, kAXTitleAttribute as String) ?? "").lowercased()
-            guard title.contains("lichess") else { return hide() }
+            guard title.contains("lichess"), gameSource == "lichess", gameActive else { return hide() }
         }
         target = frame
 

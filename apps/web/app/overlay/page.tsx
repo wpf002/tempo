@@ -70,8 +70,8 @@ export default function OverlayPage() {
   }, []);
 
   useEffect(() => {
-    bridge()?.postMessage({ source: g?.source ?? null, square, arrow });
-  }, [g?.source, square, arrow]);
+    bridge()?.postMessage({ source: g?.source ?? null, active: !!g && !g.finished, square, arrow });
+  }, [g?.source, g?.finished, !!g, square, arrow]);
 
   useEffect(() => {
     if (!error) return;
