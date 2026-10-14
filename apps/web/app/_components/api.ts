@@ -29,7 +29,7 @@ export interface LiveState {
   eval: { score: Score; text: string } | null;
   thinking: boolean;
   lastGrade: { san: string; grade: Grade; before: string; after: string; bestSan: string | null } | null;
-  hints: { tier: number; text: string; square?: string; uci?: string }[];
+  hints: { tier: number; text: string; square?: string; uci?: string; line?: string }[];
   review: { gameId: string; done: number; total: number } | null;
 }
 
@@ -138,6 +138,21 @@ export function whiteShare(s: Score): number {
   const cp = Math.max(-1000, Math.min(1000, s.cp ?? 0));
   return 1 / (1 + Math.exp(-0.00368208 * cp));
 }
+
+/** Engine score from the player's side: a few words, plus the number in pawns for anyone who wants it. */
+export function standing(s: Score, color: "w" | "b"): { words: string; pawns: string } {
+  const sign = color === "w" ? 1 : -1;
+  if (s.mate !== null) {
+    const m = s.mate * sign;
+    return { words: m > 0 ? `Mate in ${m}` : `Mated in ${-m}`, pawns: "" };
+  }
+  const p = ((s.cp ?? 0) * sign) / 100;
+  const a = Math.abs(p);
+  const words = a < 0.5 ? "Even" : a < 1.5 ? (p > 0 ? "Slight edge" : "Slightly worse") : a < 3 ? (p > 0 ? "Better" : "Worse") : p > 0 ? "Winning" : "Losing";
+  return { words, pawns: `${p > 0 ? "+" : p < 0 ? "−" : ""}${a.toFixed(1)}` };
+}
+
+export const PAWNS_TIP = "Engine score in pawns, from your side";
 
 export function fmt(s: Score): string {
   if (s.mate !== null) return `${s.mate < 0 ? "-" : ""}M${Math.abs(s.mate)}`;

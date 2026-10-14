@@ -45,12 +45,12 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
   if (err) {
     return (
       <div className="card empty">
-        <h2 className="title">Couldn't reach the daemon.</h2>
+        <h2 className="title">Can't Reach the Daemon</h2>
         <p className="muted prose">
           Check that <code>pnpm dev</code> is still running.
         </p>
         <button className="btn" onClick={() => setAttempt((a) => a + 1)}>
-          Try again
+          Try Again
         </button>
       </div>
     );
@@ -68,7 +68,7 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
   if (!drill) {
     return (
       <div className="card empty">
-        <h2 className="title">No drills due</h2>
+        <h2 className="title">No Drills Due</h2>
         <p className="muted prose">Positions where you went wrong come back here as puzzles. Solve one and it returns after 2 days, then 4, then 8. Miss it and it's back in 10 minutes.</p>
       </div>
     );
@@ -123,9 +123,9 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
               ))}
             </span>
           </div>
-          <h2 className="title">{side === "white" ? "White" : "Black"} to move. Find the better move.</h2>
+          <h2 className="title">Find the Better Move</h2>
           <p className="prose">
-            <span className="muted">From your {drill.phase}. You played</span> <b>{drill.playedSan}</b> <GradeTag grade={drill.grade} />
+            <span className="muted">{side === "white" ? "White" : "Black"} to move. You played</span> <b>{drill.playedSan}</b> <GradeTag grade={drill.grade} />
           </p>
           {!result && <p className="muted small">{busy ? "Checking your move." : "Drag a piece to answer."}</p>}
         </div>
@@ -153,7 +153,7 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
             )}
             <div className="row tight">
               <button className="btn primary" onClick={next}>
-                Next drill
+                Next Drill
               </button>
               <button
                 className="btn"
@@ -162,7 +162,7 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
                   setResult(null);
                 }}
               >
-                Try again
+                Try Again
               </button>
             </div>
           </div>

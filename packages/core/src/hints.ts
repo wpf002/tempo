@@ -1,7 +1,7 @@
 import { Chess, type Square } from "chess.js";
 import type { Analysis } from "./engine.js";
 import { applyUci } from "./notation.js";
-import { formatScore, povChances } from "./grade.js";
+import { povChances } from "./grade.js";
 
 export interface Hint {
   tier: 1 | 2 | 3;
@@ -10,6 +10,8 @@ export interface Hint {
   square?: string;
   /** Tier 3: the move in UCI, so the panel can draw it. */
   uci?: string;
+  /** Tier 3: the engine's expected continuation after the move, in SAN. */
+  line?: string;
 }
 
 const PIECE_NAMES: Record<string, string> = {
@@ -78,28 +80,28 @@ export function buildHints(analysis: Analysis): Hint[] {
   const threat = opponentThreat(analysis.fen);
   const forcing = mv.san.includes("+") || !!mv.captured;
 
+  // Tier 1 says what kind of move to look for, in a few words, without naming the piece.
   let tier1: string;
-  if (mateFor !== null) tier1 = `There's a forced mate in ${mateFor}. Look at every check.`;
-  else if (threat?.kind === "check") tier1 = "You're in check. Compare all three ways out: move the king, block, or capture.";
-  else if (threat?.kind === "mate") tier1 = "Your opponent is threatening mate. Find the threat and stop it.";
-  else if (forcing && gap >= 0.15 && mv.san.includes("+")) tier1 = "A check here does real damage. Look at your forcing moves.";
-  else if (forcing && gap >= 0.15) tier1 = "Something can be taken, and it matters. Check what's undefended.";
-  else if (threat?.kind === "material") tier1 = `Your ${PIECE_NAMES[threat.piece]} on ${threat.square} is in trouble. Deal with it or create a bigger threat.`;
-  else if (gap >= 0.3) tier1 = "Only one move keeps your position together. Look at what your opponent wants to do.";
-  else if (gap >= 0.15) tier1 = "One move is clearly better than the rest. Look for a tactic.";
-  else if (mv.captured) tier1 = "A capture is the cleanest move here.";
-  else if (mv.san.startsWith("O-O")) tier1 = "Get your king safe.";
-  else tier1 = "No tactic. It's a quiet position. Improve your worst-placed piece.";
+  if (mateFor !== null) tier1 = `Mate in ${mateFor}.`;
+  else if (threat?.kind === "check") tier1 = gap >= 0.15 ? "Only one good way out of check." : "You're in check.";
+  else if (threat?.kind === "mate") tier1 = "They're threatening mate.";
+  else if (forcing && gap >= 0.15 && mv.san.includes("+")) tier1 = "Look at your checks.";
+  else if (forcing && gap >= 0.15) tier1 = "Something can be taken.";
+  else if (threat?.kind === "material") tier1 = `Your ${PIECE_NAMES[threat.piece]} on ${threat.square} is under attack.`;
+  else if (gap >= 0.3) tier1 = "Only one move holds.";
+  else if (gap >= 0.15) tier1 = "One move stands out.";
+  else if (mv.captured) tier1 = "Take something.";
+  else if (mv.san.startsWith("O-O")) tier1 = "Think about your king.";
+  else if (piece?.type === "p") tier1 = "Quiet position. Look at pawn moves.";
+  else if ((piece?.type === "n" || piece?.type === "b") && from[1] === (color === "w" ? "1" : "8")) tier1 = "Quiet position. Develop a piece.";
+  else tier1 = "Quiet position. Find a better square for a piece.";
 
   const pieceName = PIECE_NAMES[piece?.type ?? "p"] ?? "piece";
-  const tier2 = mv.san.startsWith("O-O") ? "Castle." : `Move your ${pieceName} on ${from}.`;
-
-  const line = best.pvSan.slice(0, 5).join(" ");
-  const tier3 = `${mv.san} (${formatScore(best.score)}). Main line: ${line}`;
+  const tier2 = mv.san.startsWith("O-O") ? "Castle." : piece?.type === "p" ? `The ${from} pawn.` : `The ${pieceName} on ${from}.`;
 
   return [
     { tier: 1, text: tier1 },
     { tier: 2, text: tier2, square: mv.from },
-    { tier: 3, text: tier3, uci: mv.from + mv.to + (mv.promotion ?? "") },
+    { tier: 3, text: mv.san, uci: mv.from + mv.to + (mv.promotion ?? ""), line: best.pvSan.slice(1, 6).join(" ") },
   ];
 }

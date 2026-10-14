@@ -25,12 +25,12 @@ export function Stats({ refreshKey }: { refreshKey: number }) {
   if (err) {
     return (
       <div className="card empty">
-        <h2 className="title">Couldn't reach the daemon.</h2>
+        <h2 className="title">Can't Reach the Daemon</h2>
         <p className="muted prose">
           Check that <code>pnpm dev</code> is still running.
         </p>
         <button className="btn" onClick={() => setAttempt((a) => a + 1)}>
-          Try again
+          Try Again
         </button>
       </div>
     );
@@ -50,7 +50,7 @@ export function Stats({ refreshKey }: { refreshKey: number }) {
   if (!s.games) {
     return (
       <div className="card empty">
-        <h2 className="title">No stats yet</h2>
+        <h2 className="title">No Stats Yet</h2>
         <p className="muted prose">After your first reviewed game this page shows your accuracy over time and the mistakes you repeat, grouped by motif and by phase of the game.</p>
       </div>
     );
@@ -67,19 +67,19 @@ export function Stats({ refreshKey }: { refreshKey: number }) {
     <div className="stack">
       <div className="kpis">
         <div className="card kpi">
-          <h3 className="card-title">Games reviewed</h3>
+          <h3 className="card-title">Games Reviewed</h3>
           <div className="value">{s.games}</div>
         </div>
         <div className="card kpi">
-          <h3 className="card-title">Average accuracy</h3>
+          <h3 className="card-title">Average Accuracy</h3>
           <div className="value">{s.avgAccuracy != null ? `${s.avgAccuracy.toFixed(0)}%` : "–"}</div>
         </div>
         <div className="card kpi">
-          <h3 className="card-title">Mistakes logged</h3>
+          <h3 className="card-title">Mistakes Logged</h3>
           <div className="value">{errors}</div>
         </div>
         <div className="card kpi">
-          <h3 className="card-title">Most repeated</h3>
+          <h3 className="card-title">Most Repeated</h3>
           <div className="value" title={top?.motif}>
             {top?.motif ?? "–"}
           </div>
@@ -88,14 +88,14 @@ export function Stats({ refreshKey }: { refreshKey: number }) {
 
       {t.length > 1 && (
         <div className="card">
-          <h3 className="card-title">Accuracy by game, last {t.length}</h3>
+          <h3 className="card-title">Accuracy by Game</h3>
           <TrendChart points={t} />
         </div>
       )}
 
       <div className="cols">
         <div className="card">
-          <h3 className="card-title">What you keep getting wrong</h3>
+          <h3 className="card-title">Repeat Mistakes</h3>
           {s.byMotif.length ? (
             <div className="bars">
               {s.byMotif.map((m) => (
@@ -114,7 +114,7 @@ export function Stats({ refreshKey }: { refreshKey: number }) {
         </div>
 
         <div className="card">
-          <h3 className="card-title">Errors by phase</h3>
+          <h3 className="card-title">Errors by Phase</h3>
           <table className="table">
             <thead>
               <tr>

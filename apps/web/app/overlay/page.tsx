@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useHub, whiteShare, type Explanation, type HubMessage, type LiveState } from "../_components/api";
+import { PAWNS_TIP, standing, useHub, whiteShare, type Explanation, type HubMessage, type LiveState } from "../_components/api";
 import { Board } from "../_components/Board";
 import { ExplainBody, GradeTag, isError } from "../_components/ui";
 
-const TIERS = ["Nudge", "Piece", "Move"];
+const TIERS = ["Idea", "Piece", "Move"];
 
 type Bridge = { postMessage: (m: unknown) => void };
 
@@ -81,7 +81,14 @@ export default function OverlayPage() {
   return (
     <div className={`hud${native ? "" : " standalone"}`} ref={ref}>
       <div className="hud-head">
-        {live && state!.eval && <span className="evalnum">{state!.eval.text}</span>}
+        {live && state!.eval && (
+          <span className="standing">
+            <b>{standing(state!.eval.score, g!.playerColor).words}</b>
+            <span className="muted small nums" title={PAWNS_TIP}>
+              {standing(state!.eval.score, g!.playerColor).pawns}
+            </span>
+          </span>
+        )}
         <span className="grow small">{statusText(connected, state)}</span>
         {live && (
           <span className="pips" role="img" aria-label={`Hint level ${tier} of 3`}>
@@ -110,6 +117,7 @@ export default function OverlayPage() {
             <li key={h.tier} className="hint">
               <span className="label">{TIERS[h.tier - 1]}</span>
               {h.text}
+              {h.line && <span className="muted small">Then {h.line}</span>}
             </li>
           ))}
         </ol>
@@ -131,7 +139,7 @@ export default function OverlayPage() {
       {live && (
         <div className="row tight">
           <button className="btn primary grow" disabled={!g!.yourTurn || tier >= 3 || state!.thinking} onClick={() => send({ type: "hint" })}>
-            {tier === 0 ? "Hint" : tier < 3 ? "Bigger hint" : "Full hint shown"}
+            {tier === 0 ? "Hint" : tier < 3 ? "Bigger Hint" : "No More Hints"}
           </button>
           <button
             className="btn grow"

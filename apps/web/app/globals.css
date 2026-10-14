@@ -1284,3 +1284,14 @@ button.move:focus-visible {
   max-height: 264px;
   overflow: auto;
 }
+
+.standing {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.hud .standing b {
+  font-size: 20px;
+  line-height: 1.2;
+}

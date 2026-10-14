@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DAEMON, START_FEN, whiteShare, type ClientMessage, type Explanation, type LiveState } from "./api";
+import { DAEMON, PAWNS_TIP, START_FEN, standing, whiteShare, type ClientMessage, type Explanation, type LiveState } from "./api";
 import { Board } from "./Board";
 import { ExplainBody, GradeTag, StatusDot, isError, sourceName } from "./ui";
 
-const TIERS = ["Nudge", "Piece", "Move"];
+const TIERS = ["Idea", "Piece", "Move"];
 
 function Offline() {
   return (
     <div className="card empty">
-      <h2 className="title">Can't reach the Tempo daemon</h2>
+      <h2 className="title">Can't Reach the Daemon</h2>
       <p className="muted prose">
         The panel talks to a local process at <code>{DAEMON.replace(/^https?:\/\//, "")}</code>. Start it with <code>pnpm dev</code> from the repo root. This page reconnects on its own.
       </p>
@@ -66,7 +66,7 @@ function ReviewProgress({ review }: { review: NonNullable<LiveState["review"]> }
   return (
     <div className="card">
       <div className="card-head">
-        <h3 className="card-title">Reviewing your last game</h3>
+        <h3 className="card-title">Reviewing Last Game</h3>
         <span className="muted small nums">
           {review.done} of {review.total} positions
         </span>
@@ -126,7 +126,7 @@ export function Live({
         </div>
         <div className="stack">
           <div className="card">
-            <h2 className="title">Waiting for a game</h2>
+            <h2 className="title">Waiting for a Game</h2>
             <p className="muted prose">Start a game against the computer in Chess.app or against Lichess AI. Tempo picks it up on the first move.</p>
             <Sources sources={state.sources} />
           </div>
@@ -150,7 +150,10 @@ export function Live({
           <span className="name">{g.opponent}</span>
           {state.eval && (
             <span className="aside">
-              Eval <span className="evalnum">{state.eval.text}</span>
+              <b className="evalnum">{standing(state.eval.score, you).words}</b>
+              <span className="nums" title={PAWNS_TIP}>
+                {standing(state.eval.score, you).pawns}
+              </span>
             </span>
           )}
         </div>
@@ -198,20 +201,17 @@ export function Live({
                   <li key={h.tier} className="hint">
                     <span className="label">{TIERS[h.tier - 1]}</span>
                     {h.text}
+                    {h.line && <span className="muted small">Then {h.line}</span>}
                   </li>
                 ))}
               </ol>
-            ) : (
-              <p className="muted prose">
-                {state.thinking ? "Analysing the position." : g.yourTurn ? "Stuck? Each hint gives away a little more: the idea, then the piece, then the move." : "Hints unlock on your move."}
-              </p>
-            )}
+            ) : null}
             <div className="row tight">
               <button className="btn primary" disabled={!g.yourTurn || tier >= 3 || state.thinking} onClick={() => send({ type: "hint" })}>
-                {tier === 0 ? "Get a hint" : tier < 3 ? "Bigger hint" : "Full hint shown"}
+                {tier === 0 ? "Hint" : tier < 3 ? "Bigger Hint" : "No More Hints"}
               </button>
               <button className="btn" disabled={explaining || (tier < 3 && !lg)} aria-busy={explaining} onClick={onExplain}>
-                {tier >= 3 ? "Why is that best?" : "Explain my last move"}
+                {tier >= 3 ? "Why?" : "Explain Move"}
               </button>
             </div>
             {explanation && (
@@ -223,14 +223,14 @@ export function Live({
           </div>
         ) : (
           <div className="card">
-            <h3 className="card-title">Live coaching is off</h3>
+            <h3 className="card-title">Live Coaching Off</h3>
             <p className="prose">{state.live.reason}</p>
           </div>
         )}
 
         {lg && (
           <div className="card">
-            <h3 className="card-title">Your last move</h3>
+            <h3 className="card-title">Your Last Move</h3>
             <div className="lastmove">
               <span className="san">{lg.san}</span>
               <GradeTag grade={lg.grade} />
@@ -253,7 +253,7 @@ export function Live({
 
         {g.source === "chessapp" && (
           <div className="card">
-            <h3 className="card-title">Chess.app game</h3>
+            <h3 className="card-title">Chess.app Game</h3>
             <div className="row">
               <span className="small grow">You play</span>
               <span className="seg" role="group" aria-label="Your color">
@@ -267,11 +267,11 @@ export function Live({
             <div className="row">
               <label className="switch grow">
                 <input type="checkbox" role="switch" checked={state.chessappHints} onChange={(e) => send({ type: "chessappHints", on: e.target.checked })} />
-                Live hints
+                Live Hints
               </label>
               {!g.finished && (
                 <button className="btn" onClick={() => send({ type: "endChessAppGame" })}>
-                  End game and review
+                  End and Review
                 </button>
               )}
             </div>
