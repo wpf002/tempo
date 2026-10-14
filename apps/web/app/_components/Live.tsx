@@ -10,10 +10,8 @@ const TIERS = ["Idea", "Piece", "Move"];
 function Offline() {
   return (
     <div className="card empty">
-      <h2 className="title">Can't Reach the Daemon</h2>
-      <p className="muted prose">
-        The panel talks to a local process at <code>{DAEMON.replace(/^https?:\/\//, "")}</code>. Start it with <code>pnpm dev</code> from the repo root. This page reconnects on its own.
-      </p>
+      <h2 className="title">Daemon Offline</h2>
+      <code>pnpm dev</code>
     </div>
   );
 }
@@ -84,7 +82,7 @@ function MoveList({ san }: { san: string[] }) {
     const el = ref.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [san.length]);
-  if (!san.length) return <p className="muted small">No moves yet.</p>;
+  if (!san.length) return <p className="muted small">No Moves Yet</p>;
   return (
     <div className="moves" ref={ref}>
       {san.map((m, i) => (
@@ -127,7 +125,6 @@ export function Live({
         <div className="stack">
           <div className="card">
             <h2 className="title">Waiting for a Game</h2>
-            <p className="muted prose">Start a game against the computer in Chess.app or against Lichess AI. Tempo picks it up on the first move.</p>
             <Sources sources={state.sources} />
           </div>
           {state.review && <ReviewProgress review={state.review} />}
@@ -171,14 +168,14 @@ export function Live({
           <span className="name">You</span>
           <span className="aside">
             {g.finished ? (
-              <>Game over · {g.result}</>
+              <>Game Over · {g.result}</>
             ) : g.yourTurn ? (
               <>
                 <span className="dot ok" />
-                Your move
+                Your Move
               </>
             ) : (
-              "Their move"
+              "Their Move"
             )}
           </span>
         </div>
@@ -243,6 +240,7 @@ export function Live({
                 <span className="muted">Best was</span> <b>{lg.bestSan}</b>
               </p>
             )}
+            {isError(lg.grade) && lg.why && <p className="prose">{lg.why}</p>}
           </div>
         )}
 
@@ -255,7 +253,7 @@ export function Live({
           <div className="card">
             <h3 className="card-title">Chess.app Game</h3>
             <div className="row">
-              <span className="small grow">You play</span>
+              <span className="small grow">Your Color</span>
               <span className="seg" role="group" aria-label="Your color">
                 {(["w", "b"] as const).map((c) => (
                   <button key={c} aria-pressed={you === c} onClick={() => send({ type: "setColor", color: c })}>
@@ -275,7 +273,6 @@ export function Live({
                 </button>
               )}
             </div>
-            <p className="muted small prose">Turn hints off for Game Center games. Tempo can't tell them apart from computer games.</p>
           </div>
         )}
 

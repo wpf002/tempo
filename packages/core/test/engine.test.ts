@@ -53,15 +53,15 @@ describe.skipIf(!SF)("engine integration", () => {
     const moves = ["e2e4", "e7e5", "f1c4", "b8c6", "d1h5", "g8f6", "h5f7"];
     store.upsertGame({ id: "t1", source: "chessapp", externalId: null, playerColor: "b", opponent: "Computer", vsComputer: true, startFen: START_FEN, moves, result: "1-0", startedAt: Date.now(), endedAt: Date.now() });
     const fake = {
-      messages: {
-        create: async (req: { tool_choice: { name: string } }) => ({
-          content: [{
-            type: "tool_use", id: "x", name: req.tool_choice.name,
-            input: req.tool_choice.name === "coach_summary"
+      beta: {
+        messages: {
+          parse: async (req: { messages: { content: string }[] }) => ({
+            stop_reason: "end_turn",
+            parsed_output: req.messages[0]!.content.includes("game summary")
               ? { summary: "Lost to Scholar's mate.", focus: ["Check f7 before every move"] }
               : { motif: "missed mate", explanation: "Nf6 leaves f7 defended only by the king.", takeaway: "When the queen and bishop both hit f7, defend it." },
-          }],
-        }),
+          }),
+        },
       },
     };
     const coach = new Coach({ apiKey: "x", model: "test", client: fake as never });

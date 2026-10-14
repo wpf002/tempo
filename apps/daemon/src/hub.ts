@@ -24,6 +24,9 @@ export interface LastGrade {
   before: string;
   after: string;
   bestSan: string | null;
+  /** Coach's short reason for an inaccuracy, mistake, or blunder. Null until it arrives, or with no API key. */
+  why: string | null;
+  motif: string | null;
 }
 
 export interface LiveState {
@@ -66,6 +69,8 @@ export class Hub extends EventEmitter {
   private hintTier = 0;
   private hintFen: string | null = null;
   private lastGrade: LastGrade | null = null;
+  // Short coach explanations for the player's errors, by "gameId:ply", so each is asked for once.
+  private whys = new Map<string, { why: string; motif: string } | "pending" | "failed">();
   private reviewQueue: string[] = [];
   private reviewing: LiveState["review"] = null;
   chessappHints = true;
@@ -256,19 +261,54 @@ export class Hub extends EventEmitter {
       const afterScore = after?.lines[0]?.score ?? (after && terminal(fens[lastPlayerIdx + 1]!));
       if (before?.lines[0] && afterScore) {
         const { grade } = gradeMove(before.lines[0].score, afterScore, g.playerColor, before.bestMove === g.moves[lastPlayerIdx]);
+        const key = `${g.gameId}:${lastPlayerIdx}`;
+        const known = this.whys.get(key);
         this.lastGrade = {
           san: sans[lastPlayerIdx]!,
           grade,
           before: formatScore(before.lines[0].score),
           after: formatScore(afterScore),
           bestSan: before.lines[0].pvSan[0] ?? null,
+          why: typeof known === "object" ? known.why : null,
+          motif: typeof known === "object" ? known.motif : null,
         };
+        if (!known && (grade === "inaccuracy" || grade === "mistake" || grade === "blunder")) {
+          void this.explainError(key, {
+            fenBefore: fens[lastPlayerIdx]!,
+            playedSan: sans[lastPlayerIdx]!,
+            playedScore: afterScore,
+            grade,
+            bestLines: before.lines,
+            playerColor: g.playerColor,
+            phase: phaseOf(fens[lastPlayerIdx]!, Math.floor(lastPlayerIdx / 2) + 1),
+            moveNumber: Math.floor(lastPlayerIdx / 2) + 1,
+            brief: true,
+          });
+        }
       } else if (!this.pendingFen) {
         // A position around the player's move was skipped (fast reply, or joined mid-game). Analyse it next.
         this.pendingFen = !before ? fens[lastPlayerIdx]! : !after ? fens[lastPlayerIdx + 1]! : null;
       }
     }
     this.pushState();
+  }
+
+  /** Ask the coach why a live move was an error, once, and show the answer when it lands. */
+  private async explainError(key: string, ctx: Parameters<Coach["explainMove"]>[0]): Promise<void> {
+    const { coach } = this.deps;
+    if (!coach) return;
+    this.whys.set(key, "pending");
+    try {
+      const e = await coach.explainMove(ctx);
+      this.whys.set(key, { why: e.explanation, motif: e.motif });
+      if (this.lastGrade && this.lastGrade.san === ctx.playedSan) {
+        this.lastGrade = { ...this.lastGrade, why: e.explanation, motif: e.motif };
+        this.pushState();
+      }
+    } catch (e) {
+      this.whys.set(key, "failed");
+      this.deps.log("coach failed", e);
+    }
   }
 
   requestHint(): void {

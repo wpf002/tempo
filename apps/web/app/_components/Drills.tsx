@@ -45,10 +45,8 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
   if (err) {
     return (
       <div className="card empty">
-        <h2 className="title">Can't Reach the Daemon</h2>
-        <p className="muted prose">
-          Check that <code>pnpm dev</code> is still running.
-        </p>
+        <h2 className="title">Daemon Offline</h2>
+        <code>pnpm dev</code>
         <button className="btn" onClick={() => setAttempt((a) => a + 1)}>
           Try Again
         </button>
@@ -69,7 +67,6 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
     return (
       <div className="card empty">
         <h2 className="title">No Drills Due</h2>
-        <p className="muted prose">Positions where you went wrong come back here as puzzles. Solve one and it returns after 2 days, then 4, then 8. Miss it and it's back in 10 minutes.</p>
       </div>
     );
   }

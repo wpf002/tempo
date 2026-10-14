@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { Chess } from "chess.js";
 import { z } from "zod";
 import type { EngineLine } from "./engine.js";
@@ -14,14 +15,14 @@ export type Motif = (typeof MOTIFS)[number];
 
 const Explanation = z.object({
   motif: z.enum(MOTIFS),
-  explanation: z.string().min(1).max(1200),
-  takeaway: z.string().min(1).max(300),
+  explanation: z.string(),
+  takeaway: z.string(),
 });
 export type Explanation = z.infer<typeof Explanation>;
 
 const GameSummary = z.object({
-  summary: z.string().min(1).max(1500),
-  focus: z.array(z.string().max(200)).min(1).max(3),
+  summary: z.string(),
+  focus: z.array(z.string()),
 });
 export type GameSummary = z.infer<typeof GameSummary>;
 
@@ -33,7 +34,9 @@ Stockfish analysis is in every request and it is ground truth. Rules:
 - Explain the idea behind the best move and what the played move allowed or missed. Why, not just what.
 - Pick the single motif that best fits.
 - The takeaway is one rule of thumb the player can reuse in future games. Concrete, not a platitude.
-- Plain language. No filler, no praise, no hedging. Under 110 words for the explanation.`;
+- Talk like a coach at the board, to a club player. Plain words, short sentences. No filler, no praise, no hedging, no engine jargon like "centipawns" or "eval".
+- Name squares with lowercase files as in SAN ("the knight on f3"), and pieces by name.
+- Under 110 words for the explanation unless told otherwise.`;
 
 export interface MoveContext {
   fenBefore: string;
@@ -44,6 +47,8 @@ export interface MoveContext {
   playerColor: "w" | "b";
   phase: Phase;
   moveNumber: number;
+  /** Two sentences for the live overlay instead of a full explanation. */
+  brief?: boolean;
 }
 
 export interface PositionContext {
@@ -54,8 +59,10 @@ export interface PositionContext {
 export interface CoachOptions {
   apiKey: string;
   model: string;
+  /** Needed when the API key isn't scoped to a workspace. */
+  workspaceId?: string;
   /** Override for tests. */
-  client?: Pick<Anthropic, "messages">;
+  client?: Pick<Anthropic, "beta">;
 }
 
 function board(fen: string): string {
@@ -69,35 +76,30 @@ function linesBlock(lines: EngineLine[]): string {
 }
 
 export class Coach {
-  private client: Pick<Anthropic, "messages">;
+  private client: Pick<Anthropic, "beta">;
 
   constructor(private readonly opts: CoachOptions) {
-    this.client = opts.client ?? new Anthropic({ apiKey: opts.apiKey });
+    this.client =
+      opts.client ??
+      new Anthropic({ apiKey: opts.apiKey, defaultHeaders: opts.workspaceId ? { "anthropic-workspace-id": opts.workspaceId } : undefined });
   }
 
-  private async callTool<T>(schema: z.ZodType<T>, toolName: string, inputSchema: Anthropic.Tool["input_schema"], prompt: string, maxTokens = 700): Promise<T> {
-    const res = await this.client.messages.create({
+  /** One structured-output call. Effort stays low: these are short answers grounded in engine lines. */
+  private async ask<T>(schema: z.ZodType<T>, prompt: string, maxTokens = 4000): Promise<T> {
+    const res = await this.client.beta.messages.parse({
       model: this.opts.model,
       max_tokens: maxTokens,
       system: SYSTEM,
-      tools: [{ name: toolName, description: "Return the coaching output.", input_schema: inputSchema }],
-      tool_choice: { type: "tool", name: toolName },
       messages: [{ role: "user", content: prompt }],
+      output_config: { format: betaZodOutputFormat(schema), effort: "low" },
+      // If a safety classifier declines, the API reruns the request on a fallback model.
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
     });
-    const block = res.content.find((b) => b.type === "tool_use");
-    if (!block || block.type !== "tool_use") throw new Error("coach returned no structured output");
-    return schema.parse(block.input);
+    if (res.stop_reason === "refusal") throw new Error("coach request was declined");
+    if (res.parsed_output == null) throw new Error(`coach returned no structured output (${res.stop_reason})`);
+    return res.parsed_output;
   }
-
-  private static explanationSchema: Anthropic.Tool["input_schema"] = {
-    type: "object",
-    properties: {
-      motif: { type: "string", enum: [...MOTIFS] },
-      explanation: { type: "string" },
-      takeaway: { type: "string" },
-    },
-    required: ["motif", "explanation", "takeaway"],
-  };
 
   /** Explain a played move against the engine's best lines. */
   explainMove(ctx: MoveContext): Promise<Explanation> {
@@ -112,8 +114,10 @@ Player played: ${ctx.playedSan} (eval after: ${formatScore(ctx.playedScore)}). G
 Engine's best lines from the position before the move (evals are from White's point of view):
 ${linesBlock(ctx.bestLines)}
 
-Explain what ${ctx.playedSan} got wrong and what the best move does.`;
-    return this.callTool(Explanation, "coach_move", Coach.explanationSchema, prompt);
+${ctx.brief
+  ? `In at most two short sentences (under 40 words), say what ${ctx.playedSan} allowed or missed and what the better move does. Concrete: name the piece, square, or threat. The takeaway is one short rule.`
+  : `Explain what ${ctx.playedSan} got wrong and what the best move does.`}`;
+    return this.ask(Explanation, prompt);
   }
 
   /** Explain the best move in a position (the "why" after a tier-3 hint). */
@@ -126,11 +130,11 @@ Engine's best lines (evals from White's point of view):
 ${linesBlock(ctx.lines)}
 
 Explain why the top move is best and what the position is about.`;
-    return this.callTool(Explanation, "coach_position", Coach.explanationSchema, prompt);
+    return this.ask(Explanation, prompt);
   }
 
   /** Summarize a whole game from its graded mistakes. */
-  summarizeGame(input: {
+  async summarizeGame(input: {
     playerColor: "w" | "b";
     result: string;
     accuracy: number;
@@ -152,20 +156,8 @@ ${list}
 Mistake motifs across all past games:
 ${hist}
 
-Write a short game summary (what decided the game, under 120 words) and 1-3 focus areas for the next week of practice, weighted by recurring motifs.`;
-    return this.callTool(
-      GameSummary,
-      "coach_summary",
-      {
-        type: "object",
-        properties: {
-          summary: { type: "string" },
-          focus: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
-        },
-        required: ["summary", "focus"],
-      },
-      prompt,
-      900,
-    );
+Write a short game summary (what decided the game, under 120 words) and 1-3 focus areas for the next week of practice, weighted by recurring motifs. Each focus area is one short line.`;
+    const out = await this.ask(GameSummary, prompt);
+    return { summary: out.summary, focus: out.focus.slice(0, 3) };
   }
 }

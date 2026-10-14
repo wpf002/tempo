@@ -6,6 +6,7 @@ const expandHome = (p: string) => (p.startsWith("~/") ? resolve(homedir(), p.sli
 
 const Env = z.object({
   ANTHROPIC_API_KEY: z.string().optional().default(""),
+  ANTHROPIC_WORKSPACE_ID: z.string().optional().default(""),
   TEMPO_MODEL: z.string().min(1).default("claude-sonnet-5-5"),
   STOCKFISH_PATH: z.string().min(1).default("stockfish"),
   STOCKFISH_THREADS: z.coerce.number().int().min(1).max(64).default(2),
@@ -31,6 +32,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
   const repoRoot = resolve(import.meta.dirname, "../../..");
   return {
     anthropicKey: e.ANTHROPIC_API_KEY,
+    anthropicWorkspace: e.ANTHROPIC_WORKSPACE_ID,
     model: e.TEMPO_MODEL,
     stockfishPath: e.STOCKFISH_PATH,
     threads: e.STOCKFISH_THREADS,

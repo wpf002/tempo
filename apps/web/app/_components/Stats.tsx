@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api, type Grade, type Stats as S } from "./api";
 import { TrendChart } from "./charts";
-import { GradeTag } from "./ui";
+import { GradeTag, titleCase } from "./ui";
 
 const PHASES = ["opening", "middlegame", "endgame"];
 const GRADES: Grade[] = ["inaccuracy", "mistake", "blunder"];
@@ -25,10 +25,8 @@ export function Stats({ refreshKey }: { refreshKey: number }) {
   if (err) {
     return (
       <div className="card empty">
-        <h2 className="title">Can't Reach the Daemon</h2>
-        <p className="muted prose">
-          Check that <code>pnpm dev</code> is still running.
-        </p>
+        <h2 className="title">Daemon Offline</h2>
+        <code>pnpm dev</code>
         <button className="btn" onClick={() => setAttempt((a) => a + 1)}>
           Try Again
         </button>
@@ -51,7 +49,6 @@ export function Stats({ refreshKey }: { refreshKey: number }) {
     return (
       <div className="card empty">
         <h2 className="title">No Stats Yet</h2>
-        <p className="muted prose">After your first reviewed game this page shows your accuracy over time and the mistakes you repeat, grouped by motif and by phase of the game.</p>
       </div>
     );
   }
@@ -81,7 +78,7 @@ export function Stats({ refreshKey }: { refreshKey: number }) {
         <div className="card kpi">
           <h3 className="card-title">Most Repeated</h3>
           <div className="value" title={top?.motif}>
-            {top?.motif ?? "–"}
+            {top ? titleCase(top.motif) : "–"}
           </div>
         </div>
       </div>
@@ -100,7 +97,7 @@ export function Stats({ refreshKey }: { refreshKey: number }) {
             <div className="bars">
               {s.byMotif.map((m) => (
                 <div className="row-hit" key={m.motif}>
-                  <span className="name">{m.motif}</span>
+                  <span className="name">{titleCase(m.motif)}</span>
                   <span className="track">
                     <span className="fill" style={{ width: `${(100 * m.count) / max}%` }} />
                   </span>

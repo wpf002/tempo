@@ -26,7 +26,7 @@ try {
 }
 
 const store = new Store(cfg.dbPath);
-const coach = cfg.anthropicKey ? new Coach({ apiKey: cfg.anthropicKey, model: cfg.model }) : null;
+const coach = cfg.anthropicKey ? new Coach({ apiKey: cfg.anthropicKey, model: cfg.model, workspaceId: cfg.anthropicWorkspace || undefined }) : null;
 if (!coach) log("ANTHROPIC_API_KEY not set. Grading and hints work; explanations are off.");
 
 const hub = new Hub({

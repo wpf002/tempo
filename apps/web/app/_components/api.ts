@@ -28,7 +28,7 @@ export interface LiveState {
   chessappHints: boolean;
   eval: { score: Score; text: string } | null;
   thinking: boolean;
-  lastGrade: { san: string; grade: Grade; before: string; after: string; bestSan: string | null } | null;
+  lastGrade: { san: string; grade: Grade; before: string; after: string; bestSan: string | null; why: string | null; motif: string | null } | null;
   hints: { tier: number; text: string; square?: string; uci?: string; line?: string }[];
   review: { gameId: string; done: number; total: number } | null;
 }
@@ -140,16 +140,18 @@ export function whiteShare(s: Score): number {
 }
 
 /** Engine score from the player's side: a few words, plus the number in pawns for anyone who wants it. */
-export function standing(s: Score, color: "w" | "b"): { words: string; pawns: string } {
+export function standing(s: Score, color: "w" | "b"): { words: string; pawns: string; share: number } {
   const sign = color === "w" ? 1 : -1;
+  const white = whiteShare(s);
+  const share = color === "w" ? white : 1 - white;
   if (s.mate !== null) {
     const m = s.mate * sign;
-    return { words: m > 0 ? `Mate in ${m}` : `Mated in ${-m}`, pawns: "" };
+    return { words: m > 0 ? `Mate in ${m}` : `Mated in ${-m}`, pawns: "", share };
   }
   const p = ((s.cp ?? 0) * sign) / 100;
   const a = Math.abs(p);
-  const words = a < 0.5 ? "Even" : a < 1.5 ? (p > 0 ? "Slight edge" : "Slightly worse") : a < 3 ? (p > 0 ? "Better" : "Worse") : p > 0 ? "Winning" : "Losing";
-  return { words, pawns: `${p > 0 ? "+" : p < 0 ? "−" : ""}${a.toFixed(1)}` };
+  const words = a < 0.5 ? "Even" : a < 1.5 ? (p > 0 ? "Slight Edge" : "Slightly Worse") : a < 3 ? (p > 0 ? "Better" : "Worse") : p > 0 ? "Winning" : "Losing";
+  return { words, pawns: `${p > 0 ? "+" : p < 0 ? "−" : ""}${a.toFixed(1)}`, share };
 }
 
 export const PAWNS_TIP = "Engine score in pawns, from your side";

@@ -13,13 +13,20 @@ export function isError(grade: Grade): boolean {
   return grade === "inaccuracy" || grade === "mistake" || grade === "blunder";
 }
 
+const MINOR = new Set(["a", "an", "the", "of", "in", "on", "to", "and", "or", "by", "for", "vs"]);
+
+/** Title Case for labels that come from data: grades, motifs, phases, outcomes. */
+export function titleCase(s: string): string {
+  return s.replace(/[A-Za-z]+/g, (w, i: number) => (i > 0 && MINOR.has(w.toLowerCase()) ? w.toLowerCase() : w[0]!.toUpperCase() + w.slice(1)));
+}
+
 const PLURAL: Record<Grade, string> = { best: "best", good: "good", inaccuracy: "inaccuracies", mistake: "mistakes", blunder: "blunders" };
 
 export function GradeTag({ grade, count }: { grade: Grade; count?: number }) {
   return (
     <span className="tag">
       <span className={`mark ${grade}`} />
-      {count === undefined ? grade : `${count} ${count === 1 ? grade : PLURAL[grade]}`}
+      {titleCase(count === undefined ? grade : `${count} ${count === 1 ? grade : PLURAL[grade]}`)}
     </span>
   );
 }
@@ -36,7 +43,7 @@ export function sourceName(source: SourceStatus["source"]): string {
 
 /** Result from the player's side of the board. */
 export function outcome(result: string | null, playerColor: "w" | "b"): string {
-  if (result === null) return "In progress";
+  if (result === null) return "In Progress";
   if (result === "1/2-1/2") return "Draw";
   if (result === "1-0") return playerColor === "w" ? "Won" : "Lost";
   if (result === "0-1") return playerColor === "b" ? "Won" : "Lost";
@@ -47,7 +54,7 @@ export function ExplainBody({ e }: { e: Explanation }) {
   return (
     <div className="explain">
       <div>
-        <span className="tag">{e.motif}</span>
+        <span className="tag">{titleCase(e.motif)}</span>
       </div>
       <p className="prose">{e.explanation}</p>
       {e.takeaway && (

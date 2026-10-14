@@ -31,7 +31,7 @@ export function Review({ refreshKey, reviewing }: { refreshKey: number; reviewin
         setGames(g);
         setSel((cur) => cur ?? g[0]?.id ?? null);
       })
-      .catch(() => setErr("Can't Reach the Daemon"));
+      .catch(() => setErr("Daemon Offline"));
   }, [refreshKey, attempt]);
 
   useEffect(() => {
@@ -84,9 +84,7 @@ export function Review({ refreshKey, reviewing }: { refreshKey: number; reviewin
     return (
       <div className="card empty">
         <h2 className="title">{err}</h2>
-        <p className="muted prose">
-          Check that <code>pnpm dev</code> is still running.
-        </p>
+        <code>pnpm dev</code>
         <button className="btn" onClick={() => setAttempt((a) => a + 1)}>
           Try Again
         </button>
@@ -106,7 +104,6 @@ export function Review({ refreshKey, reviewing }: { refreshKey: number; reviewin
     return (
       <div className="card empty">
         <h2 className="title">No Games Yet</h2>
-        <p className="muted prose">Finished games land here and are reviewed automatically: every position analysed, every mistake graded, the worst ones explained.</p>
       </div>
     );
   }
@@ -213,7 +210,6 @@ export function Review({ refreshKey, reviewing }: { refreshKey: number; reviewin
                   </>
                 ) : (
                   <>
-                    <p className="muted prose">A review analyses every position and grades each move. It takes about a second per move.</p>
                     <div>
                       <button className="btn primary" onClick={reviewNow}>
                         Review Game
