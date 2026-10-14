@@ -29,7 +29,7 @@ export interface LiveState {
   eval: { score: Score; text: string } | null;
   thinking: boolean;
   lastGrade: { san: string; grade: Grade; before: string; after: string; bestSan: string | null; why: string | null; motif: string | null } | null;
-  hints: { tier: number; text: string; square?: string; uci?: string; line?: string; why?: string }[];
+  hints: { tier: number; text: string; square?: string; uci?: string; line?: string; why?: string; pv?: string[]; strategy?: string; keySquares?: string[] }[];
   opening: string | null;
   review: { gameId: string; done: number; total: number } | null;
 }

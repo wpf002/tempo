@@ -14,6 +14,12 @@ export interface Hint {
   line?: string;
   /** Tier 3: why the move works, when the coach has explained it. */
   why?: string;
+  /** Tier 3: the engine's main line in UCI from this position (your move, their reply, your follow-up, ...). */
+  pv?: string[];
+  /** Tier 1: the name of the plan, from the coach. */
+  strategy?: string;
+  /** Tier 1: squares the plan is about, from the coach. */
+  keySquares?: string[];
 }
 
 const PIECE_NAMES: Record<string, string> = {
@@ -120,6 +126,6 @@ export function buildHints(analysis: Analysis): Hint[] {
   return [
     { tier: 1, text: tier1 },
     { tier: 2, text: tier2, square: mv.from },
-    { tier: 3, text: mv.san, uci: mv.from + mv.to + (mv.promotion ?? ""), line: best.pvSan.slice(1, 6).join(" ") },
+    { tier: 3, text: mv.san, uci: mv.from + mv.to + (mv.promotion ?? ""), line: best.pvSan.slice(1, 6).join(" "), pv: best.pv.slice(0, 4) },
   ];
 }

@@ -5,7 +5,7 @@ import { Chessboard, defaultAlphaNotationStyle, defaultArrowOptions, defaultNume
 
 export interface BoardArrow {
   uci: string;
-  tone: "hint" | "best";
+  tone: "hint" | "best" | "reply" | "follow";
 }
 
 const noteStyle: CSSProperties = { fontSize: 12, fontWeight: 500, textTransform: "uppercase" };
@@ -22,6 +22,7 @@ export function Board({
   lastMove = null,
   highlight = null,
   arrows = [],
+  marks = [],
   onDrop,
 }: {
   id: string;
@@ -31,11 +32,17 @@ export function Board({
   lastMove?: string | null;
   highlight?: string | null;
   arrows?: BoardArrow[];
+  /** Squares to ring, such as the squares a plan is aiming at. */
+  marks?: string[];
   onDrop?: (args: PieceDropHandlerArgs) => boolean;
 }) {
   const squareStyles: Record<string, CSSProperties> = {};
   if (lastMove) {
     for (const sq of [lastMove.slice(0, 2), lastMove.slice(2, 4)]) squareStyles[sq] = { boxShadow: "inset 0 0 0 100px var(--sq-last)" };
+  }
+  for (const m of marks) {
+    const prev = squareStyles[m]?.boxShadow;
+    squareStyles[m] = { boxShadow: ["inset 0 0 0 3px var(--mark-plan)", prev].filter(Boolean).join(", ") };
   }
   if (highlight) {
     const prev = squareStyles[highlight]?.boxShadow;

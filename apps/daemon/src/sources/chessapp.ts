@@ -76,6 +76,29 @@ export function fenFromBoard(placement: string, turn: "w" | "b"): string | null 
   }
 }
 
+function squaresOf(placement: string): string[] {
+  const out: string[] = [];
+  for (const ch of placement.replace(/\//g, "")) {
+    if (/\d/.test(ch)) for (let i = 0; i < Number(ch); i++) out.push("");
+    else out.push(ch);
+  }
+  return out;
+}
+
+/**
+ * Whose move it is after the board changed from `before` to `after`: the opposite of whoever's pieces arrived
+ * on new squares. Null when it can't tell (nothing arrived, or both sides moved between polls).
+ */
+export function turnAfter(before: string, after: string): "w" | "b" | null {
+  const a = squaresOf(before);
+  const b = squaresOf(after);
+  if (a.length !== 64 || b.length !== 64) return null;
+  const movers = new Set<"w" | "b">();
+  for (let i = 0; i < 64; i++) if (b[i] && b[i] !== a[i]) movers.add(b[i] === b[i]!.toUpperCase() ? "w" : "b");
+  if (movers.size !== 1) return null;
+  return movers.has("w") ? "b" : "w";
+}
+
 export interface Followed {
   startFen: string;
   moves: string[];
@@ -91,6 +114,7 @@ export class BoardFollower {
   private chess = new Chess();
   private moves: string[] = [];
   private synced = false;
+  private lastSeen: string | null = null;
 
   private out(): Followed {
     return { startFen: this.startFen, moves: [...this.moves] };
@@ -104,7 +128,12 @@ export class BoardFollower {
     return this.out();
   }
 
-  ingest(placement: string, turn: "w" | "b" | null = null): Followed | null {
+  ingest(placement: string, titleTurn: "w" | "b" | null = null): Followed | null {
+    const before = this.lastSeen;
+    this.lastSeen = placement;
+    // Chess.app's title lags the board by a moment after each move, so when the board just changed, the move itself
+    // says whose turn it is. The title is only used when there's nothing to compare against.
+    const turn = (before && before !== placement ? turnAfter(before, placement) : null) ?? titleTurn;
     if (placement === START_PLACEMENT) return this.startFen === START_FEN && this.synced && !this.moves.length ? this.out() : this.restart(START_FEN);
     if (this.synced) {
       if (placement === placementOf(this.chess)) return this.out();

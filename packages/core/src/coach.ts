@@ -21,6 +21,8 @@ const Explanation = z.object({
 export type Explanation = z.infer<typeof Explanation>;
 
 const HintSet = z.object({
+  strategy: z.string(),
+  keySquares: z.array(z.string()),
   plan: z.string(),
   piece: z.string(),
   move: z.string(),
@@ -144,7 +146,9 @@ ${board(ctx.fen)}
 Engine's best lines (evals from White's point of view):
 ${linesBlock(ctx.lines)}
 
-Write three hint levels, each revealing a little more:
+Write the coaching for this move:
+- strategy: the name of the plan in 2 to 4 plain words, Title Case. Use a well-known name when one fits ("Castle Early", "Control the Center", "Kingside Attack", "Trade When Ahead", "Knight Fork"), otherwise name what the plan does.
+- keySquares: up to 3 squares the plan is about (lowercase, like "e4"), for highlighting on a diagram.
 - plan: what to aim for over the next few moves and why, the way a grandmaster would explain it to a beginner. Must not name the best move or the piece that plays it. Under 30 words.
 - piece: which piece to move now and why that one, without saying where it goes. Under 20 words.
 - move: why the best move (${ctx.lines[0]?.pvSan[0] ?? "the first move of line 1"}) is good, in everyday words. Don't start by repeating the move. Under 25 words.`;

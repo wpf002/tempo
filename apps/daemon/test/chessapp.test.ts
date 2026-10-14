@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BoardFollower, ChessAppTracker, extractMoves, fenFromBoard, parseTitle } from "../src/sources/chessapp.js";
+import { BoardFollower, ChessAppTracker, extractMoves, fenFromBoard, parseTitle, turnAfter } from "../src/sources/chessapp.js";
 import type { GameUpdate } from "../src/sources/types.js";
 
 describe("extractMoves", () => {
@@ -70,14 +70,15 @@ describe("BoardFollower", () => {
     expect(f.ingest(E4_E5_NF3)?.moves).toEqual(["e2e4", "e7e5", "g1f3"]);
   });
 
-  it("handles takebacks and gives up only when it can't tell whose move it is", () => {
+  it("handles takebacks and picks up a position it can't explain", () => {
     const f = new BoardFollower();
     expect(f.ingest(E4)).toBeNull(); // mid-game, side to move unknown
     f.ingest(START);
     f.ingest(E4);
     f.ingest(E4_E5_NF3);
     expect(f.ingest(E4)?.moves).toEqual(["e2e4"]);
-    expect(f.ingest("8/8/8/4k3/8/8/8/4K3")).toBeNull();
+    // A different position altogether: picked up as a new game, side to move read from what changed.
+    expect(f.ingest("8/8/8/4k3/8/8/8/4K3")).toEqual({ startFen: "8/8/8/4k3/8/8/8/4K3 w - - 0 1", moves: [] });
     expect(f.ingest(START)).toEqual({ startFen: expect.stringContaining(" w KQkq "), moves: [] });
   });
 
@@ -126,5 +127,34 @@ describe("ChessAppTracker joining mid-game", () => {
     expect(out).toHaveLength(2);
     expect(out.every((u) => u.startFen === fen)).toBe(true);
     expect(new Set(out.map((u) => u.gameId)).size).toBe(1);
+  });
+});
+
+describe("joining when Chess.app's title lags the board", () => {
+  const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+  it("reads whose turn it is from the move that just happened", () => {
+    expect(turnAfter(START, "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR")).toBe("b");
+    expect(turnAfter("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR", "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR")).toBe("w");
+    expect(turnAfter(START, START)).toBeNull();
+  });
+
+  it("keeps following after a move even when the title still names the wrong side", () => {
+    const f = new BoardFollower();
+    const g4d5 = "rnbqkbnr/ppp1pppp/8/3p4/6P1/8/PPPPPP1P/RNBQKBNR";
+    const joined = f.ingest(g4d5, "w")!; // first sight: the title is all there is
+    // White plays Bh3 but the title still says White to move.
+    const next = f.ingest("rnbqkbnr/ppp1pppp/8/3p4/6P1/7B/PPPPPP1P/RNBQK1NR", "w")!;
+    expect(next.startFen).toBe(joined.startFen);
+    expect(next.moves).toEqual(["f1h3"]);
+  });
+
+  it("recovers from a join made with a stale title", () => {
+    const f = new BoardFollower();
+    const g4d5 = "rnbqkbnr/ppp1pppp/8/3p4/6P1/8/PPPPPP1P/RNBQKBNR";
+    f.ingest("rnbqkbnr/pppppppp/8/8/6P1/8/PPPPPP1P/RNBQKBNR", "w"); // joined after 1.g4 with a stale "White to Move"
+    const after = f.ingest(g4d5, "w")!; // Black's d5 arrives; the move says it's White's turn
+    expect(after.startFen.split(" ")[1]).toBe("w");
+    const next = f.ingest("rnbqkbnr/ppp1pppp/8/3p4/6P1/7B/PPPPPP1P/RNBQK1NR", "b")!;
+    expect(next.moves).toEqual(["f1h3"]);
   });
 });

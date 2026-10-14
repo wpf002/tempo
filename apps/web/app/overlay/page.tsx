@@ -53,10 +53,25 @@ export default function OverlayPage() {
   const g = state?.game ?? null;
   const live = !!g && !!state?.live.allowed;
   const tier = live ? state!.hints.length : 0;
-  const square = tier === 2 ? (state!.hints[1]?.square ?? null) : null;
+  const square = tier >= 2 ? (state!.hints[1]?.square ?? null) : null;
   const arrow = tier >= 3 ? (state!.hints[2]?.uci ?? null) : null;
   const lg = live ? state!.lastGrade : null;
   const st = live && state!.eval ? standing(state!.eval.score, g!.playerColor) : null;
+  const h1 = tier >= 1 ? state!.hints[0] : undefined;
+  const h3 = tier >= 3 ? state!.hints[2] : undefined;
+  // The whole recommendation at once: strategy, plan, the move, and a diagram of the line.
+  const rec =
+    h1 && h3 && h3.uci
+      ? {
+          strategy: h1.strategy ?? null,
+          plan: h1.text,
+          move: h3.text,
+          why: h3.why ?? null,
+          from: h3.uci.slice(0, 2),
+          keySquares: h1.keySquares ?? [],
+          arrows: (h3.pv ?? [h3.uci]).slice(0, 3).map((uci, i) => ({ uci, tone: (["hint", "reply", "follow"] as const)[i]! })),
+        }
+      : null;
   const shownExplanation = explanation && explanation.fen === (g?.fen ?? null) ? explanation : null;
 
   useEffect(() => setNative(!!bridge()), []);
@@ -128,34 +143,47 @@ export default function OverlayPage() {
         </section>
       )}
 
-      {tier > 0 && (
-        <section>
-          {state!.hints.map((h) => (
-            <div key={h.tier} className="step">
-              <span className="label">{TIERS[h.tier - 1]}</span>
-              {h.tier === 3 ? (
-                <span className="stack-tight">
-                  <span className="played">{moveName(h.text)}</span>
-                  {h.why && <span>{sq(h.why)}</span>}
-                  {h.line && <span className="muted small">They'll likely answer {moveName(h.line.split(" ")[0]!).toLowerCase()}</span>}
-                </span>
-              ) : (
-                <span>{sq(h.text)}</span>
-              )}
-            </div>
-          ))}
-          {/* A browser doesn't expose Lichess's board, so the hint is drawn on a copy of the position. */}
-          {g!.source === "lichess" && tier >= 2 && (
+      {rec && (
+        <section className="coach">
+          <span className="label">Strategy</span>
+          <span className="strategy">{rec.strategy ?? "Working it out…"}</span>
+          <p>{sq(rec.plan)}</p>
+
+          <span className="label">Play</span>
+          <span className="played">{moveName(rec.move)}</span>
+          {rec.why && <p>{sq(rec.why)}</p>}
+
+          <figure className="plan-figure">
             <Board
               id="hud"
               fen={g!.fen}
               orientation={g!.playerColor === "w" ? "white" : "black"}
-              whiteShare={state!.eval ? whiteShare(state!.eval.score) : null}
-              lastMove={g!.lastMove}
-              highlight={square}
-              arrows={arrow ? [{ uci: arrow, tone: "hint" }] : []}
+              lastMove={null}
+              highlight={rec.from}
+              marks={rec.keySquares}
+              arrows={rec.arrows}
             />
-          )}
+            <figcaption className="legend">
+              <span>
+                <i className="key k-move" /> Your move
+              </span>
+              {rec.arrows.some((x) => x.tone === "reply") && (
+                <span>
+                  <i className="key k-reply" /> Likely reply
+                </span>
+              )}
+              {rec.arrows.some((x) => x.tone === "follow") && (
+                <span>
+                  <i className="key k-follow" /> Your next move
+                </span>
+              )}
+              {rec.keySquares.length > 0 && (
+                <span>
+                  <i className="key k-ring" /> Target squares
+                </span>
+              )}
+            </figcaption>
+          </figure>
         </section>
       )}
 
@@ -186,10 +214,12 @@ export default function OverlayPage() {
 
       {live && !g!.finished && (
         <section className="foot">
-          <div className="actions">
-            <button className="btn primary" disabled={!g!.yourTurn || tier >= 3 || state!.thinking} onClick={() => send({ type: "hint" })}>
-              {tier === 0 ? "Hint" : tier < 3 ? "Next Hint" : "All Hints Shown"}
-            </button>
+          <div className={tier >= 3 ? "" : "actions"} style={tier >= 3 ? { display: "grid" } : undefined}>
+            {tier < 3 && (
+              <button className="btn primary" disabled={!g!.yourTurn || state!.thinking} onClick={() => send({ type: "hint" })}>
+                Coach Me
+              </button>
+            )}
             <button
               className="btn"
               disabled={explaining || tier < 3}
@@ -199,7 +229,7 @@ export default function OverlayPage() {
                 send({ type: "explain" });
               }}
             >
-              Why This Move
+              Explain More
             </button>
           </div>
           {error && (

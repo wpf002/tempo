@@ -168,7 +168,11 @@ export class Hub extends EventEmitter {
     const coach = this.hintSets.get(fen);
     if (typeof coach !== "object") return base;
     return base.map((h) =>
-      h.tier === 1 ? { ...h, text: coach.plan } : h.tier === 2 ? { ...h, text: coach.piece } : { ...h, why: coach.move },
+      h.tier === 1
+        ? { ...h, text: coach.plan, strategy: coach.strategy, keySquares: coach.keySquares.filter((q) => /^[a-h][1-8]$/.test(q)).slice(0, 3) }
+        : h.tier === 2
+          ? { ...h, text: coach.piece }
+          : { ...h, why: coach.move },
     );
   }
 
@@ -355,7 +359,8 @@ export class Hub extends EventEmitter {
       this.hintFen = fen;
       this.hintTier = 0;
     }
-    this.hintTier = Math.min(3, this.hintTier + 1);
+    // One request shows the whole recommendation: plan, piece, and move.
+    this.hintTier = 3;
     void this.fetchHintSet(fen, this.analyses.get(fen)!);
     this.pushState();
   }
