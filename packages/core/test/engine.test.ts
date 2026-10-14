@@ -42,7 +42,7 @@ describe.skipIf(!SF)("engine integration", () => {
     expect(a.bestMove).toBe("h5f7");
     expect(a.lines[0]!.score.mate).toBe(1);
     const hints = buildHints(a);
-    expect(hints[0]!.text).toMatch(/^Mate in 1\./);
+    expect(hints[0]!.text).toMatch(/checkmate in 1/);
     expect(hints[1]!.text).toMatch(/queen on h5/);
     expect(hints[2]!.text).toBe("Qxf7#");
   });

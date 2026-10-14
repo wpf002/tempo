@@ -147,15 +147,16 @@ export function standing(s: Score, color: "w" | "b"): { words: string; pawns: st
   const share = color === "w" ? white : 1 - white;
   if (s.mate !== null) {
     const m = s.mate * sign;
-    return { words: m > 0 ? `Mate in ${m}` : `Mated in ${-m}`, pawns: "", share };
+    return { words: m > 0 ? "You Can Force Checkmate" : "They Can Force Checkmate", pawns: "", share };
   }
   const p = ((s.cp ?? 0) * sign) / 100;
   const a = Math.abs(p);
-  const words = a < 0.5 ? "Even" : a < 1.5 ? (p > 0 ? "Slight Edge" : "Slightly Worse") : a < 3 ? (p > 0 ? "Better" : "Worse") : p > 0 ? "Winning" : "Losing";
+  const who = p > 0 ? "You're" : "They're";
+  const words = a < 0.5 ? "Even Game" : a < 1.5 ? `${who} Slightly Ahead` : a < 3 ? `${who} Ahead` : `${who} Winning`;
   return { words, pawns: `${p > 0 ? "+" : p < 0 ? "−" : ""}${a.toFixed(1)}`, share };
 }
 
-export const PAWNS_TIP = "Engine score in pawns, from your side";
+export const PAWNS_TIP = "Engine score: how many pawns ahead you are. Minus means behind.";
 
 export function fmt(s: Score): string {
   if (s.mate !== null) return `${s.mate < 0 ? "-" : ""}M${Math.abs(s.mate)}`;

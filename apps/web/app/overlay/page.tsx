@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PAWNS_TIP, standing, useHub, whiteShare, type Explanation, type HubMessage, type LiveState } from "../_components/api";
 import { Board } from "../_components/Board";
-import { ExplainBody, GradeTag, isError, sq } from "../_components/ui";
+import { ExplainBody, GradeTag, isError, moveName, sq } from "../_components/ui";
 
 const TIERS = ["Plan", "Piece", "Move"];
 
@@ -85,9 +85,8 @@ export default function OverlayPage() {
         <div className="hud-head">
           {st ? (
             <>
-              <span className="word">{st.words}</span>
-              <span className="muted nums" title={PAWNS_TIP}>
-                {st.pawns}
+              <span className="word" title={st.pawns ? `${PAWNS_TIP} (${st.pawns})` : undefined}>
+                {st.words}
               </span>
             </>
           ) : (
@@ -99,8 +98,14 @@ export default function OverlayPage() {
           </span>
         </div>
         {st && (
-          <div className="meter" role="img" aria-label={`Your winning chances ${Math.round(st.share * 100)}%`}>
-            <div style={{ transform: `scaleX(${st.share})` }} />
+          <div className="meter-wrap">
+            <div className="meter" role="img" aria-label={`Your winning chances ${Math.round(st.share * 100)}%`}>
+              <div style={{ transform: `scaleX(${st.share})` }} />
+            </div>
+            <span className="ends">
+              <span>You</span>
+              <span>{g!.source === "chessapp" ? "Computer" : "Them"}</span>
+            </span>
           </div>
         )}
         {state?.opening && <span className="muted small">{state.opening}</span>}
@@ -109,15 +114,16 @@ export default function OverlayPage() {
 
       {lg && (
         <section>
+          <span className="label">Your Last Move</span>
           <div className="lastmove">
-            <span className="san">{sq(lg.san)}</span>
+            <span className="played">{moveName(lg.san)}</span>
             <GradeTag grade={lg.grade} />
-            {isError(lg.grade) && lg.bestSan && (
-              <span className="small" style={{ marginLeft: "auto" }}>
-                <span className="muted">Best</span> <b>{sq(lg.bestSan)}</b>
-              </span>
-            )}
           </div>
+          {isError(lg.grade) && lg.bestSan && (
+            <span>
+              <span className="muted">Better was</span> <b>{moveName(lg.bestSan)}</b>
+            </span>
+          )}
           {isError(lg.grade) && (lg.why ? <p className="why">{sq(lg.why)}</p> : <p className="why pending">Working out why…</p>)}
         </section>
       )}
@@ -129,9 +135,9 @@ export default function OverlayPage() {
               <span className="label">{TIERS[h.tier - 1]}</span>
               {h.tier === 3 ? (
                 <span className="stack-tight">
-                  <span className="move">{sq(h.text)}</span>
+                  <span className="played">{moveName(h.text)}</span>
                   {h.why && <span>{sq(h.why)}</span>}
-                  {h.line && <span className="muted small">Then {sq(h.line)}</span>}
+                  {h.line && <span className="muted small">They'll likely answer {moveName(h.line.split(" ")[0]!).toLowerCase()}</span>}
                 </span>
               ) : (
                 <span>{sq(h.text)}</span>
@@ -162,16 +168,19 @@ export default function OverlayPage() {
       {g && g.san.length > 0 && (
         <section className="fill">
           <span className="label">Moves</span>
-          <div className="moves">
-            {g.san.map((m, i) => (
-              <span key={i} style={{ display: "contents" }}>
-                {i % 2 === 0 && <span className="num">{i / 2 + 1}.</span>}
-                <span className="move" aria-current={i === g.san.length - 1}>
-                  {sq(m)}
-                </span>
-              </span>
-            ))}
-          </div>
+          <ol className="movelog">
+            {g.san.map((m, i) => {
+              // The side that moved last is the one not on move now.
+              const lastByYou = !g.yourTurn;
+              const byYou = (g.san.length - 1 - i) % 2 === 0 ? lastByYou : !lastByYou;
+              return (
+                <li key={i} aria-current={i === g.san.length - 1}>
+                  <span className="who">{byYou ? "You" : g.source === "chessapp" ? "Computer" : "Them"}</span>
+                  {moveName(m)}
+                </li>
+              );
+            })}
+          </ol>
         </section>
       )}
 

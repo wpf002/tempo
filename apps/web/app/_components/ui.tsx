@@ -21,6 +21,22 @@ export function sq(text: string): string {
   return text.replace(/\b([KQRBN]?)([a-h]?)(x?)([a-h])([1-8])/g, (_m, p: string, f: string, x: string, file: string, rank: string) => `${p}${f.toUpperCase()}${x}${file.toUpperCase()}${rank}`);
 }
 
+const PIECE_WORD: Record<string, string> = { K: "King", Q: "Queen", R: "Rook", B: "Bishop", N: "Knight" };
+
+/** A move in words for someone who doesn't read notation: "Bxg4+" reads "Bishop takes on G4, check". */
+export function moveName(san: string): string {
+  if (san.startsWith("O-O-O")) return `Castles queenside${san.endsWith("#") ? ", checkmate" : san.endsWith("+") ? ", check" : ""}`;
+  if (san.startsWith("O-O")) return `Castles kingside${san.endsWith("#") ? ", checkmate" : san.endsWith("+") ? ", check" : ""}`;
+  const m = /^([KQRBN])?[a-h]?[1-8]?(x)?([a-h][1-8])(?:=([QRBN]))?([+#])?/.exec(san);
+  if (!m) return sq(san);
+  const piece = m[1] ? PIECE_WORD[m[1]] : "Pawn";
+  let out = `${piece} ${m[2] ? "takes on" : "to"} ${m[3]!.toUpperCase()}`;
+  if (m[4]) out += `, becomes a ${PIECE_WORD[m[4]]!.toLowerCase()}`;
+  if (m[5] === "+") out += ", check";
+  if (m[5] === "#") out += ", checkmate";
+  return out;
+}
+
 const MINOR = new Set(["a", "an", "the", "of", "in", "on", "to", "and", "or", "by", "for", "vs"]);
 
 /** Title Case for labels that come from data: grades, motifs, phases, outcomes. */
@@ -30,7 +46,18 @@ export function titleCase(s: string): string {
 
 const PLURAL: Record<Grade, string> = { best: "best", good: "good", inaccuracy: "inaccuracies", mistake: "mistakes", blunder: "blunders" };
 
+/** Plain names for move grades. The chess term is in the tooltip. */
+export const GRADE_WORD: Record<Grade, string> = { best: "Best Move", good: "Good Move", inaccuracy: "Small Slip", mistake: "Mistake", blunder: "Big Mistake" };
+
 export function GradeTag({ grade, count }: { grade: Grade; count?: number }) {
+  if (count === undefined) {
+    return (
+      <span className="tag" title={`Chess term: ${grade}`}>
+        <span className={`mark ${grade}`} />
+        {GRADE_WORD[grade]}
+      </span>
+    );
+  }
   return (
     <span className="tag">
       <span className={`mark ${grade}`} />

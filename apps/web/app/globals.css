@@ -1404,3 +1404,52 @@ button.move:focus-visible {
 .hud .moves {
   max-height: 160px;
 }
+
+.meter-wrap {
+  display: grid;
+  gap: 4px;
+}
+
+.meter-wrap .ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.hud .played {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.movelog {
+  display: grid;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  overflow: auto;
+  max-height: 200px;
+}
+
+:root[data-docked="true"] .hud .fill .movelog {
+  max-height: none;
+}
+
+.movelog li {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-inner);
+}
+
+.movelog li[aria-current="true"] {
+  background: var(--surface-2);
+}
+
+.movelog .who {
+  color: var(--text-muted);
+}

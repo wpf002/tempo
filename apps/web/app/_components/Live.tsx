@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DAEMON, PAWNS_TIP, START_FEN, standing, whiteShare, type ClientMessage, type Explanation, type LiveState } from "./api";
 import { Board } from "./Board";
-import { ExplainBody, GradeTag, StatusDot, isError, sourceName, sq } from "./ui";
+import { ExplainBody, GradeTag, StatusDot, isError, moveName, sourceName, sq } from "./ui";
 
 const TIERS = ["Idea", "Piece", "Move"];
 
@@ -147,10 +147,9 @@ export function Live({
           <span className="name">{g.opponent}</span>
           {state.eval && (
             <span className="aside">
-              <b className="evalnum">{standing(state.eval.score, you).words}</b>
-              <span className="nums" title={PAWNS_TIP}>
-                {standing(state.eval.score, you).pawns}
-              </span>
+              <b className="evalnum" title={PAWNS_TIP}>
+                {standing(state.eval.score, you).words}
+              </b>
             </span>
           )}
         </div>
@@ -230,15 +229,12 @@ export function Live({
           <div className="card">
             <h3 className="card-title">Your Last Move</h3>
             <div className="lastmove">
-              <span className="san">{sq(lg.san)}</span>
+              <span className="san">{moveName(lg.san)}</span>
               <GradeTag grade={lg.grade} />
-              <span className="muted small nums">
-                {lg.before} → {lg.after}
-              </span>
             </div>
             {isError(lg.grade) && lg.bestSan && (
               <p className="small">
-                <span className="muted">Best was</span> <b>{sq(lg.bestSan)}</b>
+                <span className="muted">Better was</span> <b>{moveName(lg.bestSan)}</b>
               </p>
             )}
             {isError(lg.grade) && lg.why && <p className="prose">{sq(lg.why)}</p>}
