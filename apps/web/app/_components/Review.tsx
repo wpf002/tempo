@@ -5,7 +5,7 @@ import { Chess } from "chess.js";
 import { api, fmt, whiteShare, type GameRow, type Grade, type LiveState, type MistakeRow, type MoveRow } from "./api";
 import { Board } from "./Board";
 import { EvalGraph } from "./charts";
-import { ExplainBody, GradeTag, Icon, glyph, isError, outcome } from "./ui";
+import { ExplainBody, GradeTag, Icon, glyph, isError, outcome, sq } from "./ui";
 
 interface Detail {
   game: GameRow;
@@ -184,13 +184,13 @@ export function Review({ refreshKey, reviewing }: { refreshKey: number; reviewin
                     <GradeTag key={g} grade={g} count={mine.filter((m) => m.grade === g).length} />
                   ))}
                 </div>
-                {game.summary && <p className="prose">{game.summary}</p>}
+                {game.summary && <p className="prose">{sq(game.summary)}</p>}
                 {game.focus.length > 0 && (
                   <div className="rule">
                     <span className="label">Focus</span>
                     <ul className="focus">
                       {game.focus.map((f) => (
-                        <li key={f}>{f}</li>
+                        <li key={f}>{sq(f)}</li>
                       ))}
                     </ul>
                   </div>
@@ -226,7 +226,7 @@ export function Review({ refreshKey, reviewing }: { refreshKey: number; reviewin
                   Move {Math.ceil(next.ply / 2)} · {next.color === game.playerColor ? "Yours" : "Theirs"}
                 </h3>
                 <div className="lastmove">
-                  <span className="san">{next.san}</span>
+                  <span className="san">{sq(next.san)}</span>
                   <GradeTag grade={next.grade} />
                   <span className="muted small nums">
                     {fmt(next.evalBefore)} → {fmt(next.evalAfter)}
@@ -234,7 +234,7 @@ export function Review({ refreshKey, reviewing }: { refreshKey: number; reviewin
                 </div>
                 {isError(next.grade) && next.bestSan && (
                   <p className="small">
-                    <span className="muted">Best was</span> <b>{next.bestSan}</b>
+                    <span className="muted">Best was</span> <b>{sq(next.bestSan)}</b>
                   </p>
                 )}
               </div>
@@ -249,7 +249,7 @@ export function Review({ refreshKey, reviewing }: { refreshKey: number; reviewin
                     <span key={i} style={{ display: "contents" }}>
                       {i % 2 === 0 && <span className="num">{i / 2 + 1}.</span>}
                       <button className="move" aria-current={ply === i} onClick={() => setPly(i)}>
-                        {san}
+                        {sq(san)}
                         {m && isError(m.grade) && (
                           <>
                             <span className="glyph">{glyph(m.grade)}</span>
@@ -269,11 +269,11 @@ export function Review({ refreshKey, reviewing }: { refreshKey: number; reviewin
                 <button className="mcard-head" onClick={() => setPly(m.ply - 1)}>
                   <span className="lastmove">
                     <span className="muted small nums">Move {Math.ceil(m.ply / 2)}</span>
-                    <b>{m.playedSan}</b>
+                    <b>{sq(m.playedSan)}</b>
                     <GradeTag grade={m.grade} />
                   </span>
                   <span className="small">
-                    <span className="muted">Best</span> <b>{m.bestSan}</b>
+                    <span className="muted">Best</span> <b>{sq(m.bestSan)}</b>
                   </span>
                 </button>
                 {m.explanation && <ExplainBody e={m} />}

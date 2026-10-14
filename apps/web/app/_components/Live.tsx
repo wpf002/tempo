@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DAEMON, PAWNS_TIP, START_FEN, standing, whiteShare, type ClientMessage, type Explanation, type LiveState } from "./api";
 import { Board } from "./Board";
-import { ExplainBody, GradeTag, StatusDot, isError, sourceName } from "./ui";
+import { ExplainBody, GradeTag, StatusDot, isError, sourceName, sq } from "./ui";
 
 const TIERS = ["Idea", "Piece", "Move"];
 
@@ -89,7 +89,7 @@ function MoveList({ san }: { san: string[] }) {
         <span key={i} style={{ display: "contents" }}>
           {i % 2 === 0 && <span className="num">{i / 2 + 1}.</span>}
           <span className="move" aria-current={i === san.length - 1}>
-            {m}
+            {sq(m)}
           </span>
         </span>
       ))}
@@ -197,8 +197,9 @@ export function Live({
                 {state.hints.map((h) => (
                   <li key={h.tier} className="hint">
                     <span className="label">{TIERS[h.tier - 1]}</span>
-                    {h.text}
-                    {h.line && <span className="muted small">Then {h.line}</span>}
+                    {sq(h.text)}
+                    {h.why && <span>{sq(h.why)}</span>}
+                    {h.line && <span className="muted small">Then {sq(h.line)}</span>}
                   </li>
                 ))}
               </ol>
@@ -213,7 +214,7 @@ export function Live({
             </div>
             {explanation && (
               <div className="rule">
-                <span className="label">On {explanation.about}</span>
+                <span className="label">On {sq(explanation.about)}</span>
                 <ExplainBody e={explanation.e} />
               </div>
             )}
@@ -221,7 +222,7 @@ export function Live({
         ) : (
           <div className="card">
             <h3 className="card-title">Live Coaching Off</h3>
-            <p className="prose">{state.live.reason}</p>
+            <p className="prose">{sq(state.live.reason)}</p>
           </div>
         )}
 
@@ -229,7 +230,7 @@ export function Live({
           <div className="card">
             <h3 className="card-title">Your Last Move</h3>
             <div className="lastmove">
-              <span className="san">{lg.san}</span>
+              <span className="san">{sq(lg.san)}</span>
               <GradeTag grade={lg.grade} />
               <span className="muted small nums">
                 {lg.before} → {lg.after}
@@ -237,10 +238,10 @@ export function Live({
             </div>
             {isError(lg.grade) && lg.bestSan && (
               <p className="small">
-                <span className="muted">Best was</span> <b>{lg.bestSan}</b>
+                <span className="muted">Best was</span> <b>{sq(lg.bestSan)}</b>
               </p>
             )}
-            {isError(lg.grade) && lg.why && <p className="prose">{lg.why}</p>}
+            {isError(lg.grade) && lg.why && <p className="prose">{sq(lg.why)}</p>}
           </div>
         )}
 

@@ -13,6 +13,14 @@ export function isError(grade: Grade): boolean {
   return grade === "inaccuracy" || grade === "mistake" || grade === "blunder";
 }
 
+/**
+ * Squares shown with capital files: g4 reads G4, Nf3 reads NF3, exd5 reads ExD5. Display only; moves are stored and
+ * sent in standard lowercase notation.
+ */
+export function sq(text: string): string {
+  return text.replace(/\b([KQRBN]?)([a-h]?)(x?)([a-h])([1-8])/g, (_m, p: string, f: string, x: string, file: string, rank: string) => `${p}${f.toUpperCase()}${x}${file.toUpperCase()}${rank}`);
+}
+
 const MINOR = new Set(["a", "an", "the", "of", "in", "on", "to", "and", "or", "by", "for", "vs"]);
 
 /** Title Case for labels that come from data: grades, motifs, phases, outcomes. */
@@ -56,11 +64,11 @@ export function ExplainBody({ e }: { e: Explanation }) {
       <div>
         <span className="tag">{titleCase(e.motif)}</span>
       </div>
-      <p className="prose">{e.explanation}</p>
+      <p className="prose">{sq(e.explanation)}</p>
       {e.takeaway && (
         <div className="rule">
           <span className="label">Rule</span>
-          <p className="prose">{e.takeaway}</p>
+          <p className="prose">{sq(e.takeaway)}</p>
         </div>
       )}
     </div>

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Chess } from "chess.js";
 import { api, type DrillRow } from "./api";
 import { Board } from "./Board";
-import { GradeTag } from "./ui";
+import { GradeTag, sq } from "./ui";
 
 interface Result {
   correct: boolean;
@@ -122,7 +122,7 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
           </div>
           <h2 className="title">Find the Better Move</h2>
           <p className="prose">
-            <span className="muted">{side === "white" ? "White" : "Black"} to move. You played</span> <b>{drill.playedSan}</b> <GradeTag grade={drill.grade} />
+            <span className="muted">{side === "white" ? "White" : "Black"} to move. You played</span> <b>{sq(drill.playedSan)}</b> <GradeTag grade={drill.grade} />
           </p>
           {!result && <p className="muted small">{busy ? "Checking your move." : "Drag a piece to answer."}</p>}
         </div>
@@ -130,22 +130,22 @@ export function Drills({ refreshKey }: { refreshKey: number }) {
         {result && (
           <div className="card explain" role="status">
             <div className="lastmove">
-              <span className="san">{result.played}</span>
+              <span className="san">{sq(result.played)}</span>
               <span className="tag">
                 <span className={`mark ${result.correct ? "best" : "blunder"}`} />
                 {result.correct ? "Correct" : "Not the move"}
               </span>
               {!result.correct && (
                 <span className="small">
-                  <span className="muted">Best was</span> <b>{result.bestSan}</b>
+                  <span className="muted">Best was</span> <b>{sq(result.bestSan)}</b>
                 </span>
               )}
             </div>
-            {result.explanation && <p className="prose">{result.explanation}</p>}
+            {result.explanation && <p className="prose">{sq(result.explanation)}</p>}
             {result.takeaway && (
               <div className="rule">
                 <span className="label">Rule</span>
-                <p className="prose">{result.takeaway}</p>
+                <p className="prose">{sq(result.takeaway)}</p>
               </div>
             )}
             <div className="row tight">

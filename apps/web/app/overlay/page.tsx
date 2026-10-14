@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PAWNS_TIP, standing, useHub, whiteShare, type Explanation, type HubMessage, type LiveState } from "../_components/api";
 import { Board } from "../_components/Board";
-import { ExplainBody, GradeTag, isError } from "../_components/ui";
+import { ExplainBody, GradeTag, isError, sq } from "../_components/ui";
 
 const TIERS = ["Plan", "Piece", "Move"];
 
@@ -104,21 +104,21 @@ export default function OverlayPage() {
           </div>
         )}
         {state?.opening && <span className="muted small">{state.opening}</span>}
-        {state && g && !state.live.allowed && <span className="muted">{state.live.reason}</span>}
+        {state && g && !state.live.allowed && <span className="muted">{sq(state.live.reason)}</span>}
       </section>
 
       {lg && (
         <section>
           <div className="lastmove">
-            <span className="san">{lg.san}</span>
+            <span className="san">{sq(lg.san)}</span>
             <GradeTag grade={lg.grade} />
             {isError(lg.grade) && lg.bestSan && (
               <span className="small" style={{ marginLeft: "auto" }}>
-                <span className="muted">Best</span> <b>{lg.bestSan}</b>
+                <span className="muted">Best</span> <b>{sq(lg.bestSan)}</b>
               </span>
             )}
           </div>
-          {isError(lg.grade) && (lg.why ? <p className="why">{lg.why}</p> : <p className="why pending">Working out why…</p>)}
+          {isError(lg.grade) && (lg.why ? <p className="why">{sq(lg.why)}</p> : <p className="why pending">Working out why…</p>)}
         </section>
       )}
 
@@ -129,12 +129,12 @@ export default function OverlayPage() {
               <span className="label">{TIERS[h.tier - 1]}</span>
               {h.tier === 3 ? (
                 <span className="stack-tight">
-                  <span className="move">{h.text}</span>
-                  {h.why && <span>{h.why}</span>}
-                  {h.line && <span className="muted small">Then {h.line}</span>}
+                  <span className="move">{sq(h.text)}</span>
+                  {h.why && <span>{sq(h.why)}</span>}
+                  {h.line && <span className="muted small">Then {sq(h.line)}</span>}
                 </span>
               ) : (
-                <span>{h.text}</span>
+                <span>{sq(h.text)}</span>
               )}
             </div>
           ))}
@@ -167,7 +167,7 @@ export default function OverlayPage() {
               <span key={i} style={{ display: "contents" }}>
                 {i % 2 === 0 && <span className="num">{i / 2 + 1}.</span>}
                 <span className="move" aria-current={i === g.san.length - 1}>
-                  {m}
+                  {sq(m)}
                 </span>
               </span>
             ))}

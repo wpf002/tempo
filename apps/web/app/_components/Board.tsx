@@ -8,7 +8,7 @@ export interface BoardArrow {
   tone: "hint" | "best";
 }
 
-const noteStyle: CSSProperties = { fontSize: 12, fontWeight: 500 };
+const noteStyle: CSSProperties = { fontSize: 12, fontWeight: 500, textTransform: "uppercase" };
 
 /**
  * Board with an eval bar on its left edge.
