@@ -5,7 +5,7 @@ import { PAWNS_TIP, standing, useHub, whiteShare, type Explanation, type HubMess
 import { Board } from "../_components/Board";
 import { ExplainBody, GradeTag, isError } from "../_components/ui";
 
-const TIERS = ["Idea", "Piece", "Move"];
+const TIERS = ["Plan", "Piece", "Move"];
 
 type Bridge = { postMessage: (m: unknown) => void };
 
@@ -103,6 +103,7 @@ export default function OverlayPage() {
             <div style={{ transform: `scaleX(${st.share})` }} />
           </div>
         )}
+        {state?.opening && <span className="muted small">{state.opening}</span>}
         {state && g && !state.live.allowed && <span className="muted">{state.live.reason}</span>}
       </section>
 
@@ -127,9 +128,10 @@ export default function OverlayPage() {
             <div key={h.tier} className="step">
               <span className="label">{TIERS[h.tier - 1]}</span>
               {h.tier === 3 ? (
-                <span>
+                <span className="stack-tight">
                   <span className="move">{h.text}</span>
-                  {h.line && <span className="muted small"> then {h.line}</span>}
+                  {h.why && <span>{h.why}</span>}
+                  {h.line && <span className="muted small">Then {h.line}</span>}
                 </span>
               ) : (
                 <span>{h.text}</span>
@@ -157,8 +159,24 @@ export default function OverlayPage() {
         </section>
       )}
 
+      {g && g.san.length > 0 && (
+        <section className="fill">
+          <span className="label">Moves</span>
+          <div className="moves">
+            {g.san.map((m, i) => (
+              <span key={i} style={{ display: "contents" }}>
+                {i % 2 === 0 && <span className="num">{i / 2 + 1}.</span>}
+                <span className="move" aria-current={i === g.san.length - 1}>
+                  {m}
+                </span>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
       {live && !g!.finished && (
-        <section>
+        <section className="foot">
           <div className="actions">
             <button className="btn primary" disabled={!g!.yourTurn || tier >= 3 || state!.thinking} onClick={() => send({ type: "hint" })}>
               {tier === 0 ? "Hint" : tier < 3 ? "Next Hint" : "All Hints Shown"}

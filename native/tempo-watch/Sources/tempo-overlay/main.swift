@@ -118,6 +118,7 @@ final class Overlay: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private var wantArrow: String?
     private var gameSource: String?
     private var gameActive = false
+    private var lastDocked: Bool?
     // Whether the focused Chess window has a board, re-checked about once a second (it's a tree walk).
     private var boardWindow: (window: AXUIElement, hasBoard: Bool, age: Int)?
     fileprivate var squares: [String: AXUIElement] = [:]
@@ -181,6 +182,7 @@ final class Overlay: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         }
     }
 
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { lastDocked = nil }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { retry() }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { retry() }
 
@@ -193,7 +195,8 @@ final class Overlay: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
 
     @objc private func hudMoved() {
         guard !placing, let t = target else { return }
-        let home = homeOrigin(for: t)
+        let (home, docked) = homeOrigin(for: t)
+        if docked { return } // a docked panel snaps back to the window's side on the next tick
         offset = CGPoint(x: hud.frame.minX - home.x, y: hud.frame.maxY - home.y)
         UserDefaults.standard.set(Double(offset.x), forKey: "hudDX")
         UserDefaults.standard.set(Double(offset.y), forKey: "hudDY")
@@ -201,12 +204,13 @@ final class Overlay: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
 
     /// Default HUD top-left: beside the game window where the screen has room, so it doesn't cover the board.
     /// Falls back to the window's top-right corner, below the title bar.
-    private func homeOrigin(for target: CGRect) -> CGPoint {
+    /// Docked panels run the full height of the game window, top to bottom.
+    private func homeOrigin(for target: CGRect) -> (point: CGPoint, docked: Bool) {
         let r = cocoaRect(target)
         let screen = NSScreen.screens.first(where: { $0.frame.intersects(r) })?.visibleFrame ?? r
-        if screen.maxX - r.maxX >= hudWidth + 16 { return CGPoint(x: r.maxX + 8, y: r.maxY) }
-        if r.minX - screen.minX >= hudWidth + 16 { return CGPoint(x: r.minX - hudWidth - 8, y: r.maxY) }
-        return CGPoint(x: r.maxX - hudWidth - 16, y: r.maxY - 44)
+        if screen.maxX - r.maxX >= hudWidth + 16 { return (CGPoint(x: r.maxX + 8, y: r.maxY), true) }
+        if r.minX - screen.minX >= hudWidth + 16 { return (CGPoint(x: r.minX - hudWidth - 8, y: r.maxY), true) }
+        return (CGPoint(x: r.maxX - hudWidth - 16, y: r.maxY - 44), false)
     }
 
     private func focusedWindow(_ app: NSRunningApplication) -> AXUIElement? {
@@ -250,13 +254,19 @@ final class Overlay: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         target = frame
 
         placing = true
-        let home = homeOrigin(for: frame)
-        var origin = CGPoint(x: home.x + offset.x, y: home.y + offset.y - hudHeight)
+        let (home, docked) = homeOrigin(for: frame)
+        let height = docked ? frame.height : hudHeight
+        var origin = docked ? CGPoint(x: home.x, y: home.y - height) : CGPoint(x: home.x + offset.x, y: home.y + offset.y - height)
         if let screen = NSScreen.screens.first(where: { $0.frame.intersects(cocoaRect(frame)) })?.visibleFrame {
             origin.x = min(max(origin.x, screen.minX), screen.maxX - hudWidth)
-            origin.y = min(max(origin.y, screen.minY), screen.maxY - hudHeight)
+            origin.y = min(max(origin.y, screen.minY), screen.maxY - height)
         }
-        hud.setFrame(NSRect(x: origin.x, y: origin.y, width: hudWidth, height: hudHeight), display: true)
+        let next = NSRect(x: origin.x, y: origin.y, width: hudWidth, height: height)
+        if hud.frame != next { hud.setFrame(next, display: true) }
+        if docked != lastDocked {
+            lastDocked = docked
+            web.evaluateJavaScript("document.documentElement.dataset.docked = '\(docked)'", completionHandler: nil)
+        }
         hud.orderFrontRegardless()
         placing = false
 

@@ -5,3 +5,4 @@ export * from "./hints.js";
 export * from "./coach.js";
 export * from "./store.js";
 export * from "./review.js";
+export * from "./openings.js";

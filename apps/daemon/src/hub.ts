@@ -4,6 +4,9 @@ import {
   applyUci,
   buildHints,
   formatScore,
+  openingName,
+  START_FEN,
+  type HintSet,
   gradeMove,
   phaseOf,
   reviewGame,
@@ -44,6 +47,8 @@ export interface LiveState {
     yourTurn: boolean;
   };
   live: { allowed: boolean; reason: string };
+  /** Opening name from the moves, when the game started from the usual position. */
+  opening: string | null;
   chessappHints: boolean;
   eval: { score: Score; text: string } | null;
   thinking: boolean;
@@ -70,6 +75,8 @@ export class Hub extends EventEmitter {
   private hintFen: string | null = null;
   private lastGrade: LastGrade | null = null;
   // Short coach explanations for the player's errors, by "gameId:ply", so each is asked for once.
+  // Coach-written hint levels by FEN, asked for on the first hint request in a position.
+  private hintSets = new Map<string, HintSet | "pending" | "failed">();
   private whys = new Map<string, { why: string; motif: string } | "pending" | "failed">();
   private reviewQueue: string[] = [];
   private reviewing: LiveState["review"] = null;
@@ -145,13 +152,39 @@ export class Hub extends EventEmitter {
       sources: [...this.sources.values()],
       game,
       live,
+      opening: game && g!.startFen === START_FEN ? openingName(game.san) : null,
       chessappHints: this.chessappHints,
       eval: live.allowed && score ? { score, text: formatScore(score) } : null,
       thinking: live.allowed && !!fen && !a,
       lastGrade: live.allowed ? this.lastGrade : null,
-      hints: live.allowed && this.hintFen === fen && a ? buildHints(a).slice(0, this.hintTier) : [],
+      hints: live.allowed && fen && this.hintFen === fen && a ? this.hintsFor(fen, a) : [],
       review: this.reviewing,
     };
+  }
+
+  /** Engine hints, with the coach's wording swapped in once it arrives. */
+  private hintsFor(fen: string, a: Analysis): Hint[] {
+    const base = buildHints(a).slice(0, this.hintTier);
+    const coach = this.hintSets.get(fen);
+    if (typeof coach !== "object") return base;
+    return base.map((h) =>
+      h.tier === 1 ? { ...h, text: coach.plan } : h.tier === 2 ? { ...h, text: coach.piece } : { ...h, why: coach.move },
+    );
+  }
+
+  private async fetchHintSet(fen: string, a: Analysis): Promise<void> {
+    const { coach } = this.deps;
+    if (!coach || this.hintSets.has(fen)) return;
+    this.hintSets.set(fen, "pending");
+    const snap = this.snapshot();
+    try {
+      const set = await coach.hintPosition({ fen, lines: a.lines, sans: snap.game?.san ?? [], opening: snap.opening });
+      this.hintSets.set(fen, set);
+      this.pushState();
+    } catch (e) {
+      this.hintSets.set(fen, "failed");
+      this.deps.log("coach hints failed", e);
+    }
   }
 
   private pushState(): void {
@@ -323,6 +356,7 @@ export class Hub extends EventEmitter {
       this.hintTier = 0;
     }
     this.hintTier = Math.min(3, this.hintTier + 1);
+    void this.fetchHintSet(fen, this.analyses.get(fen)!);
     this.pushState();
   }
 

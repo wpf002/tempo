@@ -12,6 +12,8 @@ export interface Hint {
   uci?: string;
   /** Tier 3: the engine's expected continuation after the move, in SAN. */
   line?: string;
+  /** Tier 3: why the move works, when the coach has explained it. */
+  why?: string;
 }
 
 const PIECE_NAMES: Record<string, string> = {
@@ -80,21 +82,37 @@ export function buildHints(analysis: Analysis): Hint[] {
   const threat = opponentThreat(analysis.fen);
   const forcing = mv.san.includes("+") || !!mv.captured;
 
-  // Tier 1 says what kind of move to look for, in a few words, without naming the piece.
+  // Tier 1 says what to aim for, without naming the piece. The coach replaces this with a grandmaster's plan when it's
+  // available; this is the fallback, built only from facts about the position so it never reads as filler.
+  const homeRank = color === "w" ? "1" : "8";
+  const undeveloped = (["b1", "g1", "c1", "f1"] as const)
+    .map((sq) => (color === "w" ? sq : (sq.replace("1", "8") as Square)))
+    .filter((sq) => {
+      const p = chess.get(sq as Square);
+      return p && p.color === color && (p.type === "n" || p.type === "b");
+    }).length;
+  const kingHome = chess.get((color === "w" ? "e1" : "e8") as Square)?.type === "k";
+  const targetRank = Number(mv.to[1]);
+  const deepSquare = color === "w" ? targetRank >= 5 : targetRank <= 4;
+
   let tier1: string;
-  if (mateFor !== null) tier1 = `Mate in ${mateFor}.`;
-  else if (threat?.kind === "check") tier1 = gap >= 0.15 ? "Only one good way out of check." : "You're in check.";
-  else if (threat?.kind === "mate") tier1 = "They're threatening mate.";
-  else if (forcing && gap >= 0.15 && mv.san.includes("+")) tier1 = "Look at your checks.";
-  else if (forcing && gap >= 0.15) tier1 = "Something can be taken.";
-  else if (threat?.kind === "material") tier1 = `Your ${PIECE_NAMES[threat.piece]} on ${threat.square} is under attack.`;
-  else if (gap >= 0.3) tier1 = "Only one move holds.";
-  else if (gap >= 0.15) tier1 = "One move stands out.";
-  else if (mv.captured) tier1 = "Take something.";
-  else if (mv.san.startsWith("O-O")) tier1 = "Think about your king.";
-  else if (piece?.type === "p") tier1 = "Quiet position. Look at pawn moves.";
-  else if ((piece?.type === "n" || piece?.type === "b") && from[1] === (color === "w" ? "1" : "8")) tier1 = "Quiet position. Develop a piece.";
-  else tier1 = "Quiet position. Find a better square for a piece.";
+  if (mateFor !== null) tier1 = `Mate in ${mateFor}. Start with checks.`;
+  else if (threat?.kind === "check") tier1 = gap >= 0.15 ? "Only one way out of this check keeps you in the game." : "You're in check. Pick the reply that keeps your pieces working.";
+  else if (threat?.kind === "mate") tier1 = "They threaten mate. Deal with that first.";
+  else if (forcing && gap >= 0.15 && mv.san.includes("+")) tier1 = "A check wins something here. Look at every check.";
+  else if (forcing && gap >= 0.15) tier1 = "A piece of theirs is short of defenders. Count attackers and defenders.";
+  else if (threat?.kind === "material") tier1 = `Your ${PIECE_NAMES[threat.piece]} on ${threat.square} is under attack. Save it or hit back harder.`;
+  else if (gap >= 0.3) tier1 = "Most moves lose ground here. Find their threat before you move.";
+  else if (gap >= 0.15) tier1 = "One move is clearly stronger. Look at what their last move left loose.";
+  else if (mv.captured) tier1 = "Take back the material.";
+  else if (mv.san.startsWith("O-O")) tier1 = "Get your king out of the center.";
+  else if (undeveloped >= 2 && kingHome) tier1 = `${["", "", "Two", "Three", "Four"][undeveloped]} minor pieces are still at home and your king hasn't castled. Develop toward the center.`;
+  else if (piece?.type === "p" && "de".includes(from[0]!)) tier1 = "Stake a claim in the center with a pawn.";
+  else if (piece?.type === "p") tier1 = "A pawn move gains space or makes room for a piece.";
+  else if (piece?.type === "r") tier1 = "A rook belongs on an open or half-open file.";
+  else if (piece?.type === "n" && deepSquare) tier1 = "There's a strong forward square for a knight.";
+  else if ((piece?.type === "n" || piece?.type === "b") && from[1] === homeRank) tier1 = "Bring another minor piece into the game.";
+  else tier1 = "Find a better square for a piece that isn't doing much.";
 
   const pieceName = PIECE_NAMES[piece?.type ?? "p"] ?? "piece";
   const tier2 = mv.san.startsWith("O-O") ? "Castle." : piece?.type === "p" ? `The ${from} pawn.` : `The ${pieceName} on ${from}.`;

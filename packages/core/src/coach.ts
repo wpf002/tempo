@@ -20,22 +20,27 @@ const Explanation = z.object({
 });
 export type Explanation = z.infer<typeof Explanation>;
 
+const HintSet = z.object({
+  plan: z.string(),
+  piece: z.string(),
+  move: z.string(),
+});
+export type HintSet = z.infer<typeof HintSet>;
+
 const GameSummary = z.object({
   summary: z.string(),
   focus: z.array(z.string()),
 });
 export type GameSummary = z.infer<typeof GameSummary>;
 
-const SYSTEM = `You are Tempo, a chess coach with grandmaster-level understanding teaching an improving club player.
+const SYSTEM = `You are Tempo, a grandmaster coaching a club player at the board.
 
 Stockfish analysis is in every request and it is ground truth. Rules:
 - Only describe tactics, threats, and lines that the engine lines support. If the engine lines don't show it, don't claim it.
-- Use SAN for moves. Refer to squares and pieces concretely ("the knight on f3"), not vaguely.
-- Explain the idea behind the best move and what the played move allowed or missed. Why, not just what.
-- Pick the single motif that best fits.
-- The takeaway is one rule of thumb the player can reuse in future games. Concrete, not a platitude.
-- Talk like a coach at the board, to a club player. Plain words, short sentences. No filler, no praise, no hedging, no engine jargon like "centipawns" or "eval".
-- Name squares with lowercase files as in SAN ("the knight on f3"), and pieces by name.
+- Think like a grandmaster: pawn structure, king safety, piece activity, weak squares and outposts, open files, the center, and the typical plans and maneuvers of the opening on the board. Name the opening when you know it.
+- Use the standard names for tactics when one is present: fork, pin, skewer, discovered attack, double attack, deflection, decoy, overloaded defender, removing the defender, x-ray, zwischenzug, back-rank mate, trapped piece, clearance, interference, Greek gift.
+- Use SAN for moves. Refer to squares and pieces concretely ("the knight on f3").
+- Talk the way a strong human coach talks: direct, specific to this position, short sentences. Never generic advice that fits any position ("improve your worst piece", "it's a quiet position"). No filler, no praise, no hedging, no engine jargon like "centipawns" or "eval".
 - Under 110 words for the explanation unless told otherwise.`;
 
 export interface MoveContext {
@@ -85,13 +90,13 @@ export class Coach {
   }
 
   /** One structured-output call. Effort stays low: these are short answers grounded in engine lines. */
-  private async ask<T>(schema: z.ZodType<T>, prompt: string, maxTokens = 4000): Promise<T> {
+  private async ask<T>(schema: z.ZodType<T>, prompt: string, maxTokens = 4000, effort: "low" | "medium" = "low"): Promise<T> {
     const res = await this.client.beta.messages.parse({
       model: this.opts.model,
       max_tokens: maxTokens,
       system: SYSTEM,
       messages: [{ role: "user", content: prompt }],
-      output_config: { format: betaZodOutputFormat(schema), effort: "low" },
+      output_config: { format: betaZodOutputFormat(schema), effort },
       // If a safety classifier declines, the API reruns the request on a fallback model.
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
@@ -118,6 +123,32 @@ ${ctx.brief
   ? `In at most two short sentences (under 40 words), say what ${ctx.playedSan} allowed or missed and what the better move does. Concrete: name the piece, square, or threat. The takeaway is one short rule.`
   : `Explain what ${ctx.playedSan} got wrong and what the best move does.`}`;
     return this.ask(Explanation, prompt);
+  }
+
+  /**
+   * The three hint levels for the player's move, in a grandmaster's words: the plan, then the piece, then why the move works.
+   * Each level must not give away the next.
+   */
+  hintPosition(ctx: { fen: string; lines: EngineLine[]; sans: string[]; opening: string | null }): Promise<HintSet> {
+    const side = new Chess(ctx.fen).turn() === "w" ? "White" : "Black";
+    const history = ctx.sans.length
+      ? ctx.sans.map((m, i) => (i % 2 === 0 ? `${i / 2 + 1}. ${m}` : m)).join(" ")
+      : "(no moves yet, or Tempo joined mid-game)";
+    const prompt = `The player is ${side} and it is their move.
+Moves so far: ${history}
+Opening: ${ctx.opening ?? "not in Tempo's list; name it from the moves if you know it"}
+
+Position (FEN ${ctx.fen}):
+${board(ctx.fen)}
+
+Engine's best lines (evals from White's point of view):
+${linesBlock(ctx.lines)}
+
+Write three hint levels, each revealing a little more:
+- plan: the strategic plan for the next few moves and why, as a grandmaster sees this position. Typical maneuvers for this opening or structure, what to aim at, what to avoid. Must not name the engine's top move or the piece that plays it. Under 35 words.
+- piece: which piece to move now and why that piece, without saying where it goes. Under 20 words.
+- move: why the engine's top move (${ctx.lines[0]?.pvSan[0] ?? "the first move of line 1"}) is best, naming the tactic or threat if there is one. Don't start by repeating the move. Under 30 words.`;
+    return this.ask(HintSet, prompt, 4000, "medium");
   }
 
   /** Explain the best move in a position (the "why" after a tier-3 hint). */

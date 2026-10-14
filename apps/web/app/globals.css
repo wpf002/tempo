@@ -1372,3 +1372,35 @@ button.move:focus-visible {
   max-height: 240px;
   overflow: auto;
 }
+
+.stack-tight {
+  display: grid;
+  gap: 4px;
+}
+
+/* Docked beside the game window: the panel is exactly as tall as the window. Moves take the spare height and
+   the buttons stay at the bottom. */
+:root[data-docked="true"] .hud {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+:root[data-docked="true"] .hud .fill {
+  flex: 1;
+  min-height: 0;
+  align-content: start;
+}
+
+:root[data-docked="true"] .hud .fill .moves {
+  max-height: none;
+  overflow: auto;
+}
+
+:root[data-docked="true"] .hud .foot {
+  margin-top: auto;
+}
+
+.hud .moves {
+  max-height: 160px;
+}
